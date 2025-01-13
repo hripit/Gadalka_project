@@ -10,8 +10,9 @@ def get_all_schema():
 def get_symbols_data(schema):
     select = f"""--Запросим информацию о символах для {schema}
                     SELECT 
-	                    TRIM(symbol_name) 
+                        symbol_id
+	                    , TRIM(symbol_name) 
 	                    FROM "{schema}".symbols
-	                ORDER BY id_symbol ASC; """
+	                ORDER BY symbol_id ASC; """
 
     return get_data(select)

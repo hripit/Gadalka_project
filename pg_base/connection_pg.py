@@ -4,7 +4,7 @@ from psycopg import connect, Error
 from parameters import PARAMS_DB
 from uti import date_now
 from time import perf_counter
-
+from termcolor import colored
 
 def open_base_connection():
     try:
@@ -14,9 +14,9 @@ def open_base_connection():
                            port=PARAMS_DB["port"],
                            dbname=PARAMS_DB["dbname"])
 
-    except db_errors as error:
-        print(f"{date_now()}: Хуйня вышла-с open_base_connection(): "
-              f"{error.status_code}, error code: {error.error_code}, error message: {error.error_message}")
+    except Error as err:
+        print(colored(f"{date_now()}: Хуйня вышла-с open_base_connection(): "
+              f"\n\t\t\t\t\t--> текст ошибки: [{err.diag.message_primary}]", 'red'))
         response = None
 
     return response
@@ -39,9 +39,8 @@ def get_data(select):
         response = _cursor.fetchall()
 
     except Error as err:
-        print(f"{date_now()}: Хуйня вышла-с в запросе: \n\t\t\t\t\t[{select}]"
-              f"\n\t\t\t\t\t--> текст ошибки: [{err.diag.message_primary}]")
-              # f"{db_errors.Datab}, error code: {db_errors}, error message: {db_errors}")
+        print(colored(f"{date_now()}: Хуйня вышла-с в запросе: \n\t\t\t\t\t[{select}]"
+              f"\n\t\t\t\t\t--> текст ошибки: [{err.diag.message_primary}]", 'red'))
         response = None
 
     finally:
