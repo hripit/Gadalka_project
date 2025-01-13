@@ -6,7 +6,7 @@ from dateutil.relativedelta import relativedelta
 def dtime_1year_range(end_dtime: None):
 
     if not end_dtime:
-        end_dtime = datetime.now(UTC)
+        end_dtime = datetime.now(UTC).replace(tzinfo=None)
 
     end_dtime = end_dtime.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(seconds=1)
 
