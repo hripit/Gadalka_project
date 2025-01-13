@@ -3,21 +3,21 @@ from time import perf_counter
 from pg_base.select_pg import get_all_schema, get_symbols_data
 from termcolor import colored
 from copy import deepcopy
+from threads_job import check_available_data
 
 params = dict()
 
 
 def get_prices():
     start_proc = perf_counter()
-    print(colored(f"{date_now()}: Script for requesting historical information about prices on trading platforms [by list]."), 'green')
+    print(colored(f"{date_now()}: Script for requesting historical information about prices on trading platforms"
+                  f" [by list]."), 'green')
 
     # Разметим память...
     init()
 
-    # Для каждой схемы и символа запросим имеющуюся информациею в базе
-    for key_schema, value_schema in params.items():
-        for key_symbol, value_symbol in value_schema.items():
-            print(key_schema, key_symbol)
+    # Для каждой схемы и символа запросим имеющуюся информациею в базе, каждая схема обрабатывается в отдельном потоке.
+    check_available_data(params)
 
     end_proc = perf_counter()
     print(f"{date_now()}: The script for requesting historical information is complete.\n\t\t\t\t\t"

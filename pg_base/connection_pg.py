@@ -1,3 +1,4 @@
+import sys
 import time
 
 from psycopg import connect, Error
@@ -42,6 +43,7 @@ def get_data(select):
         print(colored(f"{date_now()}: Хуйня вышла-с в запросе: \n\t\t\t\t\t[{select}]"
               f"\n\t\t\t\t\t--> текст ошибки: [{err.diag.message_primary}]", 'red'))
         response = None
+        # sys.exit()
 
     finally:
         _cursor.close()
