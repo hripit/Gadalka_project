@@ -18,6 +18,10 @@ def dtime_range():
     return [start_dtime, end_dtime]
 
 
+def convert_to_timestamp(date_time):
+    return int(round(date_time.timestamp())) * 1000
+
+
 def convert_timestamp(dtime):
     return datetime.fromtimestamp(int(dtime / 1000))
 

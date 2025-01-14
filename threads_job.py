@@ -1,8 +1,10 @@
 import datetime
+import random
 import threading
 from pg_base.select_pg import get_open_times
+from binance_job import kline_data_1m
 import pandas as pd
-from uti import date_now
+from uti import date_now, convert_to_timestamp
 
 
 def kline_data(t_args):
@@ -32,10 +34,18 @@ def kline_data(t_args):
 
     first_rule()
 
-    if not params[schema][symbol]['job_times'].empty:
+    empty_frame = params[schema][symbol]['job_times']
+    if not empty_frame.empty:
         # Если нашли незаполненные периоды, запускаем job для загрузки данных с торговой площадки.
         print(f"{date_now()}: Attention! Found missing periods. The data will be reloaded.")
 
+        empty_frame['json'] = empty_frame.apply(
+            lambda x: kline_data_1m(symbol[1],
+                                    convert_to_timestamp(x['date_time']),
+                                    convert_to_timestamp(x['date_time'])), axis=1)
+
+        print(empty_frame)
+        # empty_framekline_data_1m(symbol[1],1,1)
         # Для каждой схемы должна вызываться свой JOB - нужно продумать механизм.
         # Пока будет так... Нужно поправить здесь.
 
