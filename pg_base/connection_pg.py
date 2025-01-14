@@ -7,6 +7,7 @@ from uti import date_now
 from time import perf_counter
 from termcolor import colored
 
+
 def open_base_connection():
     try:
         response = connect(user=PARAMS_DB["user"],
@@ -51,6 +52,7 @@ def get_data(select):
 
     end_proc = perf_counter()
     print(f"{date_now()}: Get pg_data:\n\t\t\t\t\t{select}"
-          f"\n\t\t\t\t\tstart_proc: [{start_proc}] :: end_proc: [{end_proc}] :: duration_time: [{end_proc - start_proc}]")
+          f"\n\t\t\t\t\tstart_proc: [{start_proc}] "
+          f":: end_proc: [{end_proc}] :: duration_time: [{end_proc - start_proc}]")
 
     return response

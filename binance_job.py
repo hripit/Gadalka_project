@@ -27,7 +27,7 @@ def kline_data_1m(symbol: str, start_time: int, end_time: int):
         response = connection.klines(symbol=symbol, interval='1m', startTime=start_time, endTime=end_time, limit=1000)
     except ClientError as error:
         print("{}: Хуйня вышла-с kline_data_1m(symbol: str, start_time: int, end_time: int): {}, error code: {}, "
-              "error message: {}".format(date_now,error.status_code, error.error_code, error.error_message))
+              "error message: {}".format(date_now, error.status_code, error.error_code, error.error_message))
         response = None
 
     if response:
@@ -36,3 +36,4 @@ def kline_data_1m(symbol: str, start_time: int, end_time: int):
         print(f"{date_now()}: Данные отсутствуют, необходима ручная проверка: [{symbol}], [{start_time}] ... [{None}] ")
 
     return response
+###

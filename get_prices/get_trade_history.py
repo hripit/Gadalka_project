@@ -44,6 +44,3 @@ def init():
                 template_dict['period'] = periods[0]
 
                 params[data[0]] = {symbol: deepcopy(template_dict)}
-
-    print(params)
-
