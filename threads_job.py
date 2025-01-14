@@ -2,6 +2,7 @@ import datetime
 import threading
 from pg_base.select_pg import get_open_times
 import pandas as pd
+from uti import date_now
 
 
 def kline_data(t_args):
@@ -12,7 +13,7 @@ def kline_data(t_args):
 
     def first_rule():
         """
-        Первая проверка: Проверим имеется ли информация для заданного периода в базе данных.
+        Проверим иметься ли информация для заданного периода в базе данных.
         :Заполним [params] Список значений open_time. Означает что на список дат,
         информация о прайсе отсутствует в БД.
         """
@@ -28,13 +29,15 @@ def kline_data(t_args):
         empty = empty[empty['date_time_concat'].isnull()]
 
         params[schema][symbol]['job_times'] = empty
-        print(empty)
 
     first_rule()
 
     if not params[schema][symbol]['job_times'].empty:
         # Если нашли незаполненные периоды, запускаем job для загрузки данных с торговой площадки.
-        print(1)
+        print(f"{date_now()}: Attention! Found missing periods. The data will be reloaded.")
+
+        # Для каждой схемы должна вызываться свой JOB - нужно продумать механизм.
+        # Пока будет так... Нужно поправить здесь.
 
 
 def check_available_data(params: dict):
