@@ -11,9 +11,7 @@ def get_connection_binance():
     except ClientError as error:
         print("{}: Хуйня вышла-с get_connection_binance(): "
               "{}, error code: {}, error message: {}".format(date_now,
-                                                             error.status_code,
-                                                             error.error_code,
-                                                             error.error_message))
+                                                             error.status_code, error.error_code, error.error_message))
 
     return connection
 
