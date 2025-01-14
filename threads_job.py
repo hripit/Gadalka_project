@@ -6,29 +6,35 @@ import pandas as pd
 
 def kline_data(t_args):
     params = t_args[0]
+    schema = t_args[1]
+    symbol = t_args[2]
+    period = t_args[3]
 
-    def first_rule(args):
+    def first_rule():
         """
         Первая проверка: Проверим имеется ли информация для заданного периода в базе данных.
-        :param args: [schema, symbol, period]
         :Заполним [params] Список значений open_time. Означает что на список дат,
         информация о прайсе отсутствует в БД.
         """
 
-        data = get_open_times(args[0], args[1][0], args[2])
+        data = get_open_times(schema, symbol[0], period)
         data = [data[0][0], data[1][0]]
         data = pd.DataFrame(data=data, columns=['date_time'], dtype='datetime64[ns]')
         data['date_time_concat'] = data['date_time']
 
-        pd_data_range = pd.date_range(start=args[2][0], end=args[2][1], freq='min')
+        pd_data_range = pd.date_range(start=period[0], end=period[1], freq='min')
         pd_data_range = pd.DataFrame(data=pd_data_range, columns=['date_time'])
         empty = pd_data_range.merge(data, on='date_time', how='left')
         empty = empty[empty['date_time_concat'].isnull()]
 
-        params[args[0]][args[1]]['job_times'] = empty
+        params[schema][symbol]['job_times'] = empty
         print(empty)
 
-    first_rule([t_args[1], t_args[2], t_args[3]])
+    first_rule()
+
+    if not params[schema][symbol]['job_times'].empty:
+        # Если нашли незаполненные периоды, запускаем job для загрузки данных с торговой площадки.
+        print(1)
 
 
 def check_available_data(params: dict):
