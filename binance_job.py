@@ -9,7 +9,7 @@ def get_connection_binance():
     try:
         connection = Spot(PARAMS_BI["api_key"], PARAMS_BI["api_secret"])
     except ClientError as error:
-        print("{}: Хуйня вышла-с get_connection_binance(): "
+        print("{}: Shit came out : get_connection_binance(): "
               "{}, error code: {}, error message: {}".format(date_now,
                                                              error.status_code, error.error_code, error.error_message))
 
@@ -24,14 +24,14 @@ def kline_data_1m(symbol: str, start_time: int, end_time: int):
     try:
         response = connection.klines(symbol=symbol, interval='1m', startTime=start_time, endTime=end_time, limit=1000)
     except ClientError as error:
-        print("{}: Хуйня вышла-с kline_data_1m(symbol: str, start_time: int, end_time: int): {}, error code: {}, "
+        print("{}: Shit came out : kline_data_1m(symbol: str, start_time: int, end_time: int): {}, error code: {}, "
               "error message: {}".format(date_now, error.status_code, error.error_code, error.error_message))
         response = None
 
     if response:
-        print(f"{date_now()}: Получены данные: [{symbol}] ... [{response[0][0]}] ... [{response[0][9]}] ")
+        print(f"{date_now()}: Data received: [{symbol}] ... [{response[0][0]}] ... [{response[0][9]}] ")
     else:
-        print(f"{date_now()}: Данные отсутствуют, необходима ручная проверка: [{symbol}], [{start_time}] ... [{None}] ")
+        print(f"{date_now()}: No data available, reason needs to be clarified: [{symbol}], [{start_time}] ... [{None}] ")
 
     return response
 ###
