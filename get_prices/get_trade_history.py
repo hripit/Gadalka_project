@@ -1,6 +1,6 @@
-from uti import date_now, dtime_1year_range
+from uti import date_now, dtime_range
 from time import perf_counter
-from pg_base.select_pg import get_all_schema, get_symbols_data
+from pg_base.select_pg import get_all_schema, get_symbols_data, get_available_periods
 from termcolor import colored
 from copy import deepcopy
 from threads_job import check_available_data
@@ -26,8 +26,8 @@ def get_prices():
 
 def init():
     template_dict = dict()
-    template_dict['period'] = dtime_1year_range(None)
-    template_dict['kline_data'] = list()
+    template_dict['period'] = list()
+    template_dict['job_times'] = list()
 
     schemas = get_all_schema()
     for data in schemas:
@@ -37,6 +37,12 @@ def init():
                 continue
 
             for symbol in symbols:
+                periods = get_available_periods(data[0], symbol[0])
+                if not periods:
+                    periods = dtime_range()
+
+                template_dict['period'] = periods[0]
+
                 params[data[0]] = {symbol: deepcopy(template_dict)}
 
     print(params)

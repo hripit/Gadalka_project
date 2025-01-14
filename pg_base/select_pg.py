@@ -29,3 +29,12 @@ def get_open_times(schema, symbol_id, period):
                     ORDER BY open_time ASC """
 
     return get_data(select)
+
+
+def get_available_periods(schema, symbol_id):
+    select = f"""-- Запросим минимальную и максимальную дату для исторических данных
+                    SELECT MIN(open_time), MAX(open_time) 
+                    FROM "{schema}".kline_data
+                    WHERE symbol_id_id={symbol_id}
+    """
+    return get_data(select)
