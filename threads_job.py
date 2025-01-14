@@ -44,8 +44,6 @@ def kline_data(t_args):
                                     convert_to_timestamp(x['date_time']),
                                     convert_to_timestamp(x['date_time'])), axis=1)
 
-        print(empty_frame)
-        # empty_framekline_data_1m(symbol[1],1,1)
         # Для каждой схемы должна вызываться свой JOB - нужно продумать механизм.
         # Пока будет так... Нужно поправить здесь.
 

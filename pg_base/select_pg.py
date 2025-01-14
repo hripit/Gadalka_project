@@ -33,7 +33,7 @@ def get_open_times(schema, symbol_id, period):
 
 def get_available_periods(schema, symbol_id):
     select = f"""-- Запросим минимальную и максимальную дату для исторических данных
-                    SELECT MIN(open_time), MAX(open_time) 
+                    SELECT MIN(open_time), date_trunc('minute', now()::timestamp(0))
                     FROM "{schema}".kline_data
                     WHERE symbol_id_id={symbol_id}
     """

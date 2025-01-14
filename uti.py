@@ -10,10 +10,10 @@ def dtime_range():
     """
     end_dtime = datetime.now(UTC).replace(tzinfo=None)
 
-    end_dtime = end_dtime.replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(seconds=1)
+    end_dtime = end_dtime.replace(second=0, microsecond=0) - timedelta(minutes=1)
 
     start_dtime = end_dtime - relativedelta(years=1)
-    start_dtime = start_dtime + timedelta(seconds=1)
+    start_dtime = start_dtime + timedelta(minutes=1)
 
     return [start_dtime, end_dtime]
 

@@ -21,7 +21,7 @@ def get_prices():
 
     end_proc = perf_counter()
     print(f"{date_now()}: The script for requesting historical information is complete.\n\t\t\t\t\t"
-          f"start_proc: [{start_proc}] :: end_proc: [{end_proc}] :: duration_time: [{end_proc-start_proc}]")
+          f" start_proc: [{start_proc}] :: end_proc: [{end_proc}] :: duration_time: [{end_proc-start_proc}]")
 
 
 def init():

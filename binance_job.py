@@ -30,4 +30,9 @@ def kline_data_1m(symbol: str, start_time: int, end_time: int):
               "error message: {}".format(date_now,error.status_code, error.error_code, error.error_message))
         response = None
 
+    if response:
+        print(f"{date_now()}: Получены данные: [{symbol}] ... [{response[0][0]}] ... [{response[0][9]}] ")
+    else:
+        print(f"{date_now()}: Данные отсутствуют, необходима ручная проверка: [{symbol}], [{start_time}] ... [{None}] ")
+
     return response
