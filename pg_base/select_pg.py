@@ -28,7 +28,7 @@ def get_open_times(schema, symbol_id):
                     WHERE
                         symbol_id = {symbol_id}
 
-                    ORDER BY open_time ASC """
+                    ORDER BY open_time ASC;"""
 
     return get_data(select)
 
@@ -37,8 +37,8 @@ def get_available_periods(schema, symbol_id):
     select = f"""-- Запросим минимальную и максимальную дату для исторических данных
                     SELECT  MIN(open_time), date_trunc('minute', now() at time zone ('utc'))
                     FROM "{schema}".kline_data
-                    WHERE symbol_id={symbol_id}
-    """
+                    WHERE symbol_id={symbol_id};"""
+
     return get_data(select)
 
 
@@ -52,8 +52,8 @@ def set_frame_to_DB(schema, kline_data):
                     COPY \"{schema}\".kline_data 
                         (open_time, kline_json,  price_hi, price_low, volume, symbol_id)
                     FROM STDIN
-                    WITH CSV DELIMITER as ';';
-    """
+                    WITH CSV DELIMITER as ';';"""
+
     csv_buffer.seek(0)
 
     return apply_dataframe_with_copy(select, csv_buffer)

@@ -18,7 +18,7 @@ def open_base_connection():
 
     except Error as err:
         print(colored(f"{date_now()}: Хуйня вышла-с open_base_connection(): "
-              f"\n\t\t\t\t\t--> текст ошибки: [{err.diag.message_primary}]", 'red'))
+                      f"\n\t\t\t--> текст ошибки: [{err.diag.message_primary}]", 'red'))
         response = None
 
     return response
@@ -41,8 +41,8 @@ def get_data(select):
         response = _cursor.fetchall()
 
     except Error as err:
-        print(colored(f"{date_now()}: Хуйня вышла-с в запросе: \n\t\t[{select}]"
-              f"\n\t\t\t --> текст ошибки: [{err.diag.message_primary}]", 'red'))
+        print(colored(f"{date_now()}: Хуйня вышла-с в запросе: [{select}]"
+                      f"\n\t\t --> текст ошибки: [{err.diag.message_primary}]", 'red'))
         response = None
         # sys.exit()
 
@@ -51,9 +51,9 @@ def get_data(select):
         _db_connection.close()
 
     end_proc = perf_counter()
-    print(f"{date_now()}: Get pg_data:\n\t\t{select}"
-          f"\n\t\t\t\t\t\tstart_proc: [{start_proc}] "
-          f":: end_proc: [{end_proc}] :: duration_time: [{end_proc - start_proc}]")
+    print(colored(f"{date_now()}: Get pg_data: [{select}]"
+                  f"\n\t\t\tstart_proc: [{start_proc}] "
+                  f":: end_proc: [{end_proc}] :: duration_time: [{end_proc - start_proc}]", 'green'))
 
     return response
 
@@ -78,8 +78,8 @@ def apply_dataframe_with_copy(select, kline_data):
         _cursor.close()
 
     except Error as e:
-        print(colored(f"{date_now()}: Хуйня вышла-с в запросе: \n\t\t[{select}]"
-                      f"\n\t\t\t --> текст ошибки: [{e}]", 'red'))
+        print(colored(f"{date_now()}: Хуйня вышла-с в запросе: [{select}]"
+                      f"\n\t\t --> текст ошибки: [{e}]", 'red'))
         apply_result = False
 
     finally:
@@ -87,12 +87,8 @@ def apply_dataframe_with_copy(select, kline_data):
         _db_connection.close()
 
     end_proc = perf_counter()
-    print(f"{date_now()}: Применение фрейма в базу данных: "
-          f"\n\t\t\t\t\tstart_proc: [{start_proc}] :: end_proc: [{end_proc}] ::"
-          f" duration_time: [{end_proc - start_proc}]")
+    print(colored(f"{date_now()}: Применение фрейма в базу данных: "
+          f"\n\t\t\tstart_proc: [{start_proc}] "
+                  f":: end_proc: [{end_proc}] :: duration_time: [{end_proc - start_proc}]", 'green'))
 
     return apply_result
-
-
-
-

@@ -190,9 +190,12 @@ def kline_data_1m(symbol: str, start_time: int, end_time: int):
         response = None
 
     if response:
-        print(f"{date_now()}: Data received: [{symbol}] ... [{convert_from_timestamp(response[0][0])}] ... [{response[0][9]}] ")
+        print(colored(f"{date_now()}: Data received: [{symbol}] ... "
+              f"[{convert_from_timestamp(response[0][0])}] ... "
+                      f"[{response[0][9]}] ... length is [{len(response)}] times", 'yellow'))
     else:
-        print(f"{date_now()}: No data available, reason needs to be clarified: [{symbol}], [{start_time}] ... [{None}] ")
+        print(colored(f"{date_now()}: No data available, "
+                      f"reason needs to be clarified: [{symbol}], [{start_time}] ... [{None}] ", 'red'))
 
     return response
 ###
