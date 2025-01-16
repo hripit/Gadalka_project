@@ -43,8 +43,8 @@ def Lets_start_job(params: dict):
 
     end_proc = perf_counter()
     duration = end_proc - start_proc
-    print(colored(f"{date_now()}: The job for requesting historical information is complete.\n\t\t\t\t\t"
-          f" start_proc: [{start_proc}] :: end_proc: [{end_proc}] :: duration_time: [{duration}]", 'grey'))
+    print(colored(f"{date_now()}: The job for requesting historical information is complete.\n\t"
+          f" start_proc: [{start_proc}] :: end_proc: [{end_proc}] :: duration_time: [{duration}]", 'magenta'))
 
 
 def kline_data_job(params: dict, schema: str, symbol: list):
@@ -70,7 +70,7 @@ def kline_data_job(params: dict, schema: str, symbol: list):
     end_proc = perf_counter()
     duration = end_proc - start_proc
     print(colored(f"{date_now()}: Thread for schema [{schema}] :: symbol: [{symbol}] is complete.\n\t\t\t\t\t"
-                  f" start_proc: [{start_proc}] :: end_proc: [{end_proc}] :: duration_time: [{duration}]", 'grey'))
+                  f" start_proc: [{start_proc}] :: end_proc: [{end_proc}] :: duration_time: [{duration}]", 'magenta'))
 
 
 def combine_period(schema, symbol):
