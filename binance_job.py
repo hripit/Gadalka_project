@@ -1,16 +1,13 @@
+import sys
 import time
-
+import pandas as pd
 from binance.spot import Spot
 from binance.error import ClientError
-from fontTools.misc.cython import returns
-
 from uti import date_now, convert_from_timestamp, dtime_range, convert_to_timestamp, repack_list
-#
 from termcolor import colored
 from time import perf_counter
 from threading import Thread
 from pg_base.select_pg import get_available_periods, get_open_times, set_frame_to_DB
-import pandas as pd
 from json import dumps
 
 # Секция хранения параметров подключения API Binance
@@ -37,7 +34,6 @@ def Lets_start_job(params: dict):
             job_thread = Thread(target=kline_data_job, args=[params, schema_key, symbol_key])
             job_threads_list.append(job_thread)
 
-    job_thread: Thread
     for job_thread in job_threads_list:
         job_thread.start()
         time.sleep(1)
@@ -60,7 +56,7 @@ def kline_data_job(params: dict, schema: str, symbol: list):
 
     if not params[schema][symbol]['job_times'].empty:
         # Если нашли незаполненные периоды, запускаем job для загрузки данных торговой площадки.
-        print(f"{date_now()}: Attention! Found missing data for periods:"
+        print(f"{date_now()}: Attention! Found missing data [{symbol[1]}] for periods:"
               f" [{params[schema][symbol]['period'][0]}] :: "
               f"[{params[schema][symbol]['period'][1]}]. "
               f"The data will be reloaded ...soon.")
@@ -178,7 +174,7 @@ def get_connection_binance():
 
 
 def kline_data_1m(symbol: str, start_time: int, end_time: int):
-    connection = None
+    connection = response = None
     while not connection:
         connection = get_connection_binance()
 
@@ -188,14 +184,16 @@ def kline_data_1m(symbol: str, start_time: int, end_time: int):
         print("{}: Shit came out : kline_data_1m(symbol: str, start_time: int, end_time: int): {}, error code: {}, "
               "error message: {}".format(date_now, error.status_code, error.error_code, error.error_message))
         response = None
+        sys.exit()
 
     if response:
         print(colored(f"{date_now()}: Data received: [{symbol}] ... "
-              f"[{convert_from_timestamp(response[0][0])}] ... "
+                      f"[{convert_from_timestamp(response[0][0])}] ... "
                       f"[{response[0][9]}] ... length is [{len(response)}] times", 'yellow'))
     else:
         print(colored(f"{date_now()}: No data available, "
-                      f"reason needs to be clarified: [{symbol}], [{start_time}] ... [{None}] ", 'red'))
+                      f"reason needs to be clarified: [{symbol}], "
+                      f"[{convert_from_timestamp(start_time)}] ... [{None}] ", 'cyan'))
 
     return response
 ###

@@ -26,6 +26,7 @@ def init():
     template_dict = dict()
     template_dict['period'] = list()
     template_dict['job_times'] = list()
+    temp_symbols = dict()
 
     schemas = get_all_schema()
     for data in schemas:
@@ -35,5 +36,7 @@ def init():
                 continue
 
             for symbol in symbols:
-                params[data[0]] = {symbol: deepcopy(template_dict)}
+                temp_symbols[symbol] = deepcopy(template_dict)
+
+            params[data[0]] = temp_symbols
 

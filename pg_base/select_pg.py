@@ -14,7 +14,7 @@ def get_symbols_data(schema):
                         symbol_id
 	                    , TRIM(symbol_name) 
 	                    FROM "{schema}".symbols
-	                    WHERE symbol_id = 17
+	                    --WHERE symbol_id = 17
 	                ORDER BY symbol_id ASC; """
 
     return get_data(select)
@@ -27,7 +27,6 @@ def get_open_times(schema, symbol_id):
                     FROM "{schema}".kline_data
                     WHERE
                         symbol_id = {symbol_id}
-
                     ORDER BY open_time ASC;"""
 
     return get_data(select)
