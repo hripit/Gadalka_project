@@ -12,6 +12,9 @@ params = dict()
 
 def get_prices():
     # Разметим память...
+    print(colored(f"{date_now()}: Script for requesting historical information "
+                  f"about prices on trading platforms [by list]", 'magenta'))
+
     init()
 
     while True:

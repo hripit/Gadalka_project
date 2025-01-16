@@ -69,7 +69,7 @@ def kline_data_job(params: dict, schema: str, symbol: list):
 
     end_proc = perf_counter()
     duration = end_proc - start_proc
-    print(colored(f"{date_now()}: Thread for schema [{schema}] :: symbol: [{symbol}] is complete.\n\t\t\t\t\t"
+    print(colored(f"{date_now()}: Thread for schema [{schema}] :: symbol: [{symbol}] is complete.\n\t"
                   f" start_proc: [{start_proc}] :: end_proc: [{end_proc}] :: duration_time: [{duration}]", 'magenta'))
 
 
