@@ -6,7 +6,7 @@ from datetime import tzinfo
 from pg_base.select_pg import get_open_times, get_available_periods, set_frame_to_DB
 from binance_job import kline_data_1m
 import pandas as pd
-from uti import date_now, convert_to_timestamp, dtime_range, repack_list, convert_timestamp
+from uti import date_now, convert_to_timestamp, dtime_range, repack_list, convert_from_timestamp
 from json import dumps
 
 
@@ -72,7 +72,7 @@ def kline_data(t_args):
 
         kline_frame = pd.Series(data=kline_data_list).to_frame(name='json')
         kline_frame['date_time'] = kline_frame.apply(
-            lambda x: convert_timestamp(x['json'][0]), axis=1)
+            lambda x: convert_from_timestamp(x['json'][0]), axis=1)
 
         empty_frame = empty_frame.drop('date_time_concat', axis=1)
 

@@ -12,14 +12,17 @@ def repack_list(array: list):
 
 def dtime_range():
     """
-    Для создания периода по умолчанию.
+    Для создания периода: в UTC, по умолчанию 1 год от начала текущего дня до текущего времени.
     :return: [start_dtime, end_dtime]
     """
     end_dtime = datetime.now(UTC)
-    end_dtime = end_dtime.replace(second=0, microsecond=0, tzinfo=None)
+    end_dtime = end_dtime.replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=None)
 
-    start_dtime = end_dtime - relativedelta(days=1)
-    start_dtime = start_dtime + timedelta(minutes=1)
+    start_dtime = end_dtime - relativedelta(years=1)
+    # start_dtime = start_dtime + timedelta(minutes=1)
+
+    end_dtime = datetime.now(UTC)
+    end_dtime = end_dtime.replace(second=0, microsecond=0, tzinfo=None)
 
     return [start_dtime, end_dtime]
 
@@ -29,7 +32,7 @@ def convert_to_timestamp(date_time: datetime):
     return int(round(date_time.timestamp())) * 1000
 
 
-def convert_timestamp(dtime):
+def convert_from_timestamp(dtime):
     return datetime.fromtimestamp(int(dtime / 1000), UTC).replace(tzinfo=None)
 
 

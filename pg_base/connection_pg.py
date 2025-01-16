@@ -41,8 +41,8 @@ def get_data(select):
         response = _cursor.fetchall()
 
     except Error as err:
-        print(colored(f"{date_now()}: Хуйня вышла-с в запросе: \n\t\t\t\t\t[{select}]"
-              f"\n\t\t\t\t\t--> текст ошибки: [{err.diag.message_primary}]", 'red'))
+        print(colored(f"{date_now()}: Хуйня вышла-с в запросе: \n\t\t[{select}]"
+              f"\n\t\t\t --> текст ошибки: [{err.diag.message_primary}]", 'red'))
         response = None
         # sys.exit()
 
@@ -51,16 +51,16 @@ def get_data(select):
         _db_connection.close()
 
     end_proc = perf_counter()
-    print(f"{date_now()}: Get pg_data:\n\t\t\t\t\t{select}"
-          f"\n\t\t\t\t\tstart_proc: [{start_proc}] "
+    print(f"{date_now()}: Get pg_data:\n\t\t{select}"
+          f"\n\t\t\t\t\t\tstart_proc: [{start_proc}] "
           f":: end_proc: [{end_proc}] :: duration_time: [{end_proc - start_proc}]")
 
     return response
 
 
 ####
-def load_dataframe_with_copy(kline_data):
-    job_result = True
+def apply_dataframe_with_copy(select, kline_data):
+    apply_result = True
 
     start_proc = perf_counter()
     _db_connection = None
@@ -73,29 +73,25 @@ def load_dataframe_with_copy(kline_data):
     _cursor = _db_connection.cursor()
 
     try:
-        _cursor.copy_expert("COPY \"BINANCE:timeless\".kline_data "
-                            "(open_time, kline_json,  price_hi, price_low, volume, symbol_id)  "
-                            "FROM STDIN "
-                            "WITH CSV DELIMITER as ';'"
-                            "", kline_data)
+        _cursor.copy_expert(select, kline_data)
         _db_connection.commit()
-
         _cursor.close()
 
     except Error as e:
-        print(f"{date_now()}, shit happen {e}")
-        job_result = False
+        print(colored(f"{date_now()}: Хуйня вышла-с в запросе: \n\t\t[{select}]"
+                      f"\n\t\t\t --> текст ошибки: [{e}]", 'red'))
+        apply_result = False
 
     finally:
         _cursor.close()
         _db_connection.close()
 
     end_proc = perf_counter()
-    print(f"{date_now()}: Сохранение данных фрейма в базу данных: "
+    print(f"{date_now()}: Применение фрейма в базу данных: "
           f"\n\t\t\t\t\tstart_proc: [{start_proc}] :: end_proc: [{end_proc}] ::"
           f" duration_time: [{end_proc - start_proc}]")
 
-    return job_result
+    return apply_result
 
 
 

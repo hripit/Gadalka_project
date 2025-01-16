@@ -1,5 +1,5 @@
 import io
-from pg_base.connection_pg import get_data, load_dataframe_with_copy
+from pg_base.connection_pg import get_data, apply_dataframe_with_copy
 
 
 def get_all_schema():
@@ -14,6 +14,7 @@ def get_symbols_data(schema):
                         symbol_id
 	                    , TRIM(symbol_name) 
 	                    FROM "{schema}".symbols
+	                    WHERE symbol_id = 17
 	                ORDER BY symbol_id ASC; """
 
     return get_data(select)
@@ -41,13 +42,18 @@ def get_available_periods(schema, symbol_id):
     return get_data(select)
 
 
-def set_frame_to_DB(kline_data):
+def set_frame_to_DB(schema, kline_data):
 
     # Convert the DataFrame to a CSV file-like object
     csv_buffer = io.StringIO()
-    csv = None
     kline_data.to_csv(csv_buffer, index=False, header=False, sep=';')
 
+    select = f"""-- Применим информацию из фрейма в базу данных.
+                    COPY \"{schema}\".kline_data 
+                        (open_time, kline_json,  price_hi, price_low, volume, symbol_id)
+                    FROM STDIN
+                    WITH CSV DELIMITER as ';';
+    """
     csv_buffer.seek(0)
 
-    return load_dataframe_with_copy(csv_buffer)
+    return apply_dataframe_with_copy(select, csv_buffer)
