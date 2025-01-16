@@ -3,6 +3,8 @@ from binance.error import ClientError
 from parameters import PARAMS_BI
 from uti import date_now
 
+import io
+
 
 def get_connection_binance():
     connection = None

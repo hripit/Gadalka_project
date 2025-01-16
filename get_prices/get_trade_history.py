@@ -3,7 +3,7 @@ from time import perf_counter
 from pg_base.select_pg import get_all_schema, get_symbols_data, get_available_periods
 from termcolor import colored
 from copy import deepcopy
-from threads_job import check_available_data
+from threads_job import update_data
 
 params = dict()
 
@@ -17,7 +17,7 @@ def get_prices():
     init()
 
     # Для каждой схемы и символа запросим имеющуюся информациею в базе, каждая схема обрабатывается в отдельном потоке.
-    check_available_data(params)
+    update_data(params)
 
     end_proc = perf_counter()
     print(f"{date_now()}: The script for requesting historical information is complete.\n\t\t\t\t\t"
@@ -37,10 +37,5 @@ def init():
                 continue
 
             for symbol in symbols:
-                periods = get_available_periods(data[0], symbol[0])
-                if not periods:
-                    periods = dtime_range()
-
-                template_dict['period'] = periods[0]
-
                 params[data[0]] = {symbol: deepcopy(template_dict)}
+
