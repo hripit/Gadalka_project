@@ -65,6 +65,7 @@ def kline_data_job(params: dict, schema: str, symbol: list):
 
         # Применим фрейм в БД
         set_frame_to_DB(schema, params[schema][symbol]['job_times'])
+        params[schema][symbol]['job_times'] = None
 
     end_proc = perf_counter()
     duration = end_proc - start_proc

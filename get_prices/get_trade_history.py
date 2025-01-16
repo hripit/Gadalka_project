@@ -1,6 +1,7 @@
-from uti import date_now, dtime_range
-from time import perf_counter
-from pg_base.select_pg import get_all_schema, get_symbols_data, get_available_periods
+import time
+
+from uti import date_now
+from pg_base.select_pg import get_all_schema, get_symbols_data
 from termcolor import colored
 from copy import deepcopy
 
@@ -10,13 +11,16 @@ params = dict()
 
 
 def get_prices():
-    print(colored(f"{date_now()}: Script for requesting historical information about prices on trading platforms"
-                  f" [by list]."), 'green')
-
     # Разметим память...
     init()
 
-    Lets_start_job(params)
+    while True:
+        print(colored(f"{date_now()}: Script for requesting historical information "
+                      f"about prices on trading platforms [by list]", 'magenta'))
+
+        Lets_start_job(params)
+        time.sleep(60)
+
 
     # Для каждой схемы и символа запросим имеющуюся информациею в базе, каждая схема обрабатывается в отдельном потоке.
     # update_data(params)
@@ -39,4 +43,3 @@ def init():
                 temp_symbols[symbol] = deepcopy(template_dict)
 
             params[data[0]] = temp_symbols
-
