@@ -175,15 +175,19 @@ def get_connection_binance():
 
 def kline_data_1m(symbol: str, start_time: int, end_time: int):
     connection = response = None
+
     while not connection:
         connection = get_connection_binance()
+        if not connection:
+            time.sleep(1)
 
     try:
         response = connection.klines(symbol=symbol, interval='1m', startTime=start_time, endTime=end_time, limit=1000)
+
     except ClientError as error:
         print("{}: Shit came out : kline_data_1m(symbol: str, start_time: int, end_time: int): {}, error code: {}, "
               "error message: {}".format(date_now, error.status_code, error.error_code, error.error_message))
-        response = None
+
         sys.exit()
 
     if response:
