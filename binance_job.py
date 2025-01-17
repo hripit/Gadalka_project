@@ -131,7 +131,6 @@ def download_data(params, schema, symbol):
     kline_frame['date_time'] = kline_frame.apply(lambda x: convert_from_timestamp(x['json'][0]), axis=1)
 
     empty_frame = empty_frame.merge(kline_frame, on='date_time')
-
     # Распакуем json до нужных полей во фрейм
     # [
     #   [
@@ -190,7 +189,7 @@ def kline_data_1m(symbol: str, start_time: int, end_time: int):
     if response:
         print(colored(f"{date_now()}: Data received: [{symbol}] ... "
                       f"[{convert_from_timestamp(response[0][0])}] ... "
-                      f"[{response[0][9]}] ... length is [{len(response)}] times", 'yellow'))
+                      f"[# same kline data ***********] ... length is [{len(response)}] times", 'yellow'))
     else:
         print(colored(f"{date_now()}: No data available, "
                       f"reason needs to be clarified: [{symbol}], "
