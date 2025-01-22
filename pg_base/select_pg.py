@@ -12,10 +12,8 @@ def get_symbols_data(schema):
     select = f"""-- Запросим информацию о символах для {schema}
                     SELECT 
                         symbol_id
-	                    , TRIM(symbol_name) 
-	                    FROM "{schema}".symbols
-	                    --WHERE symbol_id = 17
-	                ORDER BY symbol_id ASC; """
+	                    , TRIM(symbol) 
+	                    FROM "{schema}".symbols_data"""
 
     return get_data(select)
 
@@ -26,8 +24,7 @@ def get_open_times(schema, symbol_id):
                         open_time	
                     FROM "{schema}".kline_data
                     WHERE
-                        symbol_id = {symbol_id}
-                    ORDER BY open_time ASC;"""
+                        symbol_id = {symbol_id};"""
 
     return get_data(select)
 
