@@ -2,6 +2,12 @@ from PyQt6.QtCore import *
 from PyQt6.QtGui import *
 from PyQt6.QtWidgets import *
 from PyQt6.QtCharts import *
+from interface.app_param import message_md, mem_app
+from interface.app_uti import compare_message
+
+
+def focuses_md():
+    print(1)
 
 
 class Pocket_volume(QFrame):
@@ -36,6 +42,7 @@ class Pocket_volume(QFrame):
 
         self.setLayout(self.lay)
         self.setFixedHeight(40)
+
 
 class Calculate_orders(QFrame):
     def __init__(self, parent=None):
@@ -100,10 +107,33 @@ class Messages(QFrame):
         self.lay = QHBoxLayout()
         self.lay.addWidget(self.cmb)
 
-        self.message_model = QStandardItemModel()
-        self.message_model.setItem(0,0,QStandardItem('Текстовые сообщения программы....'))
+        self.message_model = message_md
+        # self.message_model.setItem(0,0,QStandardItem('Текстовые сообщения программы....'))
         self.cmb.setModel(self.message_model)
 
-        self.cmb.setCurrentIndex(0)
+        self.cmb.setCurrentIndex(message_md.rowCount()-1)
         self.setMinimumWidth(200)
         self.setLayout(self.lay)
+
+
+class layers_cmb(QFrame):
+    def __init__(self, parent=None):
+        super(layers_cmb, self).__init__(parent)
+        self.cmb = QComboBox(self)
+        self.lay = QHBoxLayout()
+        self.lay.addWidget(self.cmb)
+        self.cmb.setModel(mem_app['models']['layers'])
+
+        self.cmb.setCurrentIndex(0)  # Потом будем ставить по умолчанию...
+
+        self.cmb.currentIndexChanged.connect(self.index_changed)
+
+        self.setFixedWidth(200)
+        self.setLayout(self.lay)
+
+    def index_changed(self, item):
+        message_md.appendRow(compare_message(f'Установлен слой: {self.cmb.currentText()}'))
+        print(item)
+
+
+

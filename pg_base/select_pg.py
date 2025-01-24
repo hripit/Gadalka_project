@@ -53,3 +53,22 @@ def set_frame_to_DB(schema, kline_data):
     csv_buffer.seek(0)
 
     return apply_dataframe_with_copy(select, csv_buffer)
+
+
+def select_layers(schema):
+    select = f'''--Запросим расчетные слои
+    SELECT 
+		md.layer_id
+		, md.base_asset 
+		, md.margin 
+		, md.symbol_id, TRIM(sy.symbol)
+		, md.coin_id, TRIM(co.coin)
+		, md.default
+		
+	FROM "{schema}".model_layer md
+	LEFT JOIN "{schema}".symbols_data sy on sy.symbol_id = md.symbol_id
+	LEFT JOIN "{schema}".coin_data co on co.coin_id = md.coin_id
+	WHERE md.state = True
+	ORDER BY md.default desc, md.layer_id;'''
+
+    return get_data(select)

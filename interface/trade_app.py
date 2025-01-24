@@ -5,15 +5,50 @@ from PyQt6.QtGui import *
 from PyQt6.QtWidgets import *
 from PyQt6.QtCharts import *
 
-from interface.app_param import message_md
+from interface.app_param import message_md, mem_app, schema_md, layer_md
 from interface.app_uti import compare_message
-from interface.app_wgt import Pocket_volume, Project_GADALKA, Calculate_orders, Bottom_form, Messages
+from interface.app_wgt import Pocket_volume, Project_GADALKA, Calculate_orders, Bottom_form, Messages, layers_cmb
+from pg_base.select_pg import get_all_schema, select_layers
+
+
+def set_basic_md():
+    mem_app['models'] = dict()
+
+    mem_app['models']['schemas'] = schema_md
+    mem_app['models']['layers'] = layer_md
 
 
 def init():
-
     message_md.clear()
-    message_md.appendRow(compare_message('Инициализируем переменные проекта.'))
+    message_md.appendRow(compare_message('Инициализируем переменные проекта...'))
+    mem_app.clear()
+
+    message_md.appendRow(compare_message('Инициализируем доступные схемы...'))
+    schemas = get_all_schema()
+    for schema in schemas:
+        if schema[0].find('timeless') != -1:
+            mem_app[schema[0]] = dict()
+            schema_md.appendRow(QStandardItem(schema[0]))
+
+            message_md.appendRow(compare_message('Инициализируем расчетные слои...'))
+            layers = select_layers(schema[0])
+
+            if not layers:
+                message_md.appendRow(compare_message(f'Для схемы: {schema} расчетные слои не обнаружены.'))
+                continue
+
+            for layer in layers:
+                layer_text = (layer[0], f"symbol: {[layer[3], layer[4]]}, "
+                              f"side: {[layer[5], layer[6]]}, "
+                              f"base asset: {layer[1]}, margin: {layer[2]}")
+
+                mem_app[schema[0]][layer_text] = dict()
+                mem_app[schema[0]][layer_text]['default'] = layer[7]
+                layer_md.appendRow(QStandardItem(layer_text[1]))
+
+    set_basic_md()
+
+    message_md.appendRow(compare_message('Инициализация программы успешно выполнена, можно приступать к работе...'))
 
 
 class Head_frame(QFrame):
@@ -29,21 +64,6 @@ class Head_frame(QFrame):
         self.lay.addWidget(Messages(self))
         self.lay.addWidget(Timer_wgt(self))
 
-        self.setLayout(self.lay)
-
-
-class layers_cmb(QFrame):
-    def __init__(self, parent=None):
-        super(layers_cmb, self).__init__(parent)
-        self.cmb = QComboBox(self)
-        self.lay = QHBoxLayout()
-        self.lay.addWidget(self.cmb)
-
-        # for symbol in params_app.vals_dict['available_symbols'].keys():
-        #     self.cmb.addItem(symbol)
-
-        self.cmb.setCurrentIndex(0)
-        self.setFixedWidth(200)
         self.setLayout(self.lay)
 
 
