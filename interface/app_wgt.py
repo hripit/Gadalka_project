@@ -24,7 +24,7 @@ class Pocket_volume(QFrame):
         self.coin = QComboBox(self)
         self.coin.setMinimumWidth(100)
         self.coin_model = QStandardItemModel()
-        self.coin_model.appendRow(QStandardItem('PEPE'))
+        self.coin_model.appendRow(QStandardItem('WIF'))
         self.coin_model.appendRow(QStandardItem('USDT'))
 
         self.coin.setModel(self.coin_model)
@@ -34,6 +34,7 @@ class Pocket_volume(QFrame):
 
         self.btn = QPushButton()
         self.btn.setFixedWidth(30)
+        self.btn.clicked.connect(self.start_trade)
 
         self.lay.addWidget(self.label)
         self.lay.addWidget(self.value)
@@ -42,6 +43,13 @@ class Pocket_volume(QFrame):
 
         self.setLayout(self.lay)
         self.setFixedHeight(40)
+
+    def start_trade(self):
+        params = dict()
+        params['coin'] = [None, self.coin.currentText()]
+        params['symbols'] = dict()
+
+        print(params['coin'])
 
 
 class Calculate_orders(QFrame):

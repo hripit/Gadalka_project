@@ -95,11 +95,17 @@ class Middle_frame(QFrame):
         super(Middle_frame, self).__init__(parent)
 
         self.lay = QHBoxLayout()
+
+        self.split = QSplitter()
+        self.split.setOrientation(Qt.Orientation.Horizontal)
+
         self.left_frame = Left_frame(self)
         self.right_frame = Right_frame(self)
 
-        self.lay.addWidget(self.left_frame)
-        self.lay.addWidget(self.right_frame)
+        self.split.addWidget(self.left_frame)
+        self.split.addWidget(self.right_frame)
+
+        self.lay.addWidget(self.split)
 
         self.setFrameStyle(QFrame.Shape.Panel | QFrame.Shadow.Plain)
         self.setLayout(self.lay)
@@ -136,7 +142,7 @@ class Right_frame(QFrame):
     def __init__(self, parent=None):
         super(Right_frame, self).__init__(parent)
         self.setFrameStyle(QFrame.Shape.Panel | QFrame.Shadow.Plain)
-        self.setFixedWidth(400)
+        self.setMinimumWidth(400)
 
         self.tab_bar = QTabWidget(self)
         self.lay_tab = QHBoxLayout(self)
@@ -167,6 +173,8 @@ class Central_frame(QFrame):
         self.lay = QVBoxLayout()
 
         self.head_frame = Head_frame(self)
+        self.head_frame.setFixedHeight(60)
+
         self.mid_frame = Middle_frame(self)
 
         self.lay.addWidget(self.head_frame)
