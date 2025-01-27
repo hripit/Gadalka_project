@@ -4,6 +4,21 @@ from uti import date_now
 from interface.data_file import get_connection_binance
 
 
+def get_all_rules(sym: str = None):
+    connection = get_connection_binance()
+    print(f'{date_now()}: Запросим данные данные биржи о правилах торговли: [{sym}]')
+    try:
+        if sym:
+            response = connection.exchange_info(symbol=sym)
+        else:
+            response = connection.exchange_info()
+    except ClientError as error:
+        print("Хуйня вышла-с set_rules(pair): {}, error code: {}, error message: {}".format(
+            error.status_code, error.error_code, error.error_message))
+        response = None
+    return response
+
+
 def get_balance_info(coin=None):
     i = 0
     response = list()

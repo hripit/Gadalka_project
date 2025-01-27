@@ -1,7 +1,6 @@
 from binance.error import ClientError
 from binance.spot import Spot
 
-1
 
 def get_connection_binance():
     try:

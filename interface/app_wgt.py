@@ -3,11 +3,33 @@ from PyQt6.QtGui import *
 from PyQt6.QtWidgets import *
 from PyQt6.QtCharts import *
 from interface.app_param import message_md, mem_app
-from interface.app_uti import compare_message
+from interface.app_uti import compare_message, set_mini_symbols
+from interface.binance_data import get_balance_info, get_all_rules
 
 
 def focuses_md():
     print(1)
+
+
+def get_all_symbols(coin):
+    symbols = list()
+
+    rules = get_all_rules()
+    while not rules:
+        rules = get_all_rules()
+
+    result = rules['symbols']
+    for val in result:
+        if not val['status'] == 'TRADING':
+            continue
+        if 'LIMIT' not in val['orderTypes']:
+            continue
+        if coin not in (val['baseAsset'], val['quoteAsset']):
+            continue
+
+        set_mini_symbols(val)
+        symbols.append(val)
+    return symbols
 
 
 class Pocket_volume(QFrame):
@@ -47,8 +69,23 @@ class Pocket_volume(QFrame):
     def start_trade(self):
         params = dict()
         params['coin'] = [None, self.coin.currentText()]
-        params['symbols'] = dict()
 
+        params['balance'] = get_balance_info(coin=params['coin'][1])
+        if not params['balance']:
+            return
+        message_md.appendRow(compare_message(f'Получен баланс по монете: [{params['coin']}], '
+                                             f'[{params['balance']['free']}]'))
+
+        # symbols = get_balance_info(coin=None)
+        params['symbols'] = get_all_symbols(params['coin'][1])
+
+        if not params['symbols']:
+            return
+
+        message_md.appendRow(compare_message(f'Получена информация по символам : '
+                                             f'[{params['symbols'][0]['symbol']}] ... '
+                                             f'[{params['symbols'][-1]['symbol']}], '
+                                             f'всего: [{len(params['symbols'])}]'))
         print(params['coin'])
 
 
