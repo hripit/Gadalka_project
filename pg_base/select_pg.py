@@ -12,10 +12,8 @@ def get_symbols_data(schema):
     select = f"""-- Запросим информацию о символах для {schema}
                     SELECT 
                         symbol_id
-	                    , TRIM(symbol_name) 
-	                    FROM "{schema}".symbols
-	                    --WHERE symbol_id = 17
-	                ORDER BY symbol_id ASC; """
+	                    , TRIM(symbol) 
+	                    FROM "{schema}".symbols_data"""
 
     return get_data(select)
 
@@ -26,8 +24,7 @@ def get_open_times(schema, symbol_id):
                         open_time	
                     FROM "{schema}".kline_data
                     WHERE
-                        symbol_id = {symbol_id}
-                    ORDER BY open_time ASC;"""
+                        symbol_id = {symbol_id};"""
 
     return get_data(select)
 
@@ -56,3 +53,22 @@ def set_frame_to_DB(schema, kline_data):
     csv_buffer.seek(0)
 
     return apply_dataframe_with_copy(select, csv_buffer)
+
+
+def select_layers(schema):
+    select = f'''--Запросим расчетные слои
+    SELECT 
+		md.layer_id
+		, md.base_asset 
+		, md.margin 
+		, md.symbol_id, TRIM(sy.symbol)
+		, md.coin_id, TRIM(co.coin)
+		, md.default
+		
+	FROM "{schema}".model_layer md
+	LEFT JOIN "{schema}".symbols_data sy on sy.symbol_id = md.symbol_id
+	LEFT JOIN "{schema}".coin_data co on co.coin_id = md.coin_id
+	WHERE md.state = True
+	ORDER BY md.default desc, md.layer_id;'''
+
+    return get_data(select)

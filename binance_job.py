@@ -36,7 +36,7 @@ def Lets_start_job(params: dict):
 
     for job_thread in job_threads_list:
         job_thread.start()
-        time.sleep(1)
+        # time.sleep(1)
 
     for job_thread in job_threads_list:
         job_thread.join()
