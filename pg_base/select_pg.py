@@ -72,3 +72,17 @@ def select_layers(schema):
 	ORDER BY md.default desc, md.layer_id;'''
 
     return get_data(select)
+
+
+def get_coin(schema, coin):
+    select = f'''--Инициализируем монету
+        SELECT coin_id, TRIM(coin) FROM "{schema}".coin_data WHERE coin = '{coin}';'''
+
+    return get_data(select)
+
+
+def get_symbols(schema):
+    select = f'''--Инициализируем символы
+        SELECT symbol_id, TRIM(symbol) FROM "{schema}".symbols_data;'''
+
+    return get_data(select)

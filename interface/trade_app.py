@@ -1,3 +1,4 @@
+import random
 import sys, datetime
 
 from PyQt6.QtCore import *
@@ -48,7 +49,7 @@ def init():
 
     set_basic_md()
 
-    message_md.appendRow(compare_message('Инициализация программы успешно выполнена, можно приступать к работе...'))
+    message_md.appendRow(compare_message('Инициализация параметров выполнена...'))
 
 
 class Head_frame(QFrame):
@@ -82,12 +83,13 @@ class Timer_wgt(QFrame):
         self.LCD.display(self.time)
 
         self.timer = QTimer(self)
-        self.timer .timeout.connect(self.set_LCD)
+        self.timer.timeout.connect(self.set_update)
         self.timer.start(99)
 
-    def set_LCD(self):
+    def set_update(self):
         self.time = str(datetime.datetime.now(datetime.UTC).strftime('%Y.%m.%d %H:%M:%S'))
         self.LCD.display(self.time)
+
 
 
 class Middle_frame(QFrame):
@@ -192,6 +194,16 @@ class Main_window(QMainWindow):
 
         self.setCentralWidget(self.frame1)
         self.showMaximized()
+
+    #     self.update_timer = QTimer(self)
+    #     self.update_timer.timeout.connect(self.update_wgt)
+    #     self.update_timer.start(99)
+    #
+    # def update_wgt(self):
+    #
+    #     print(1)
+
+
 
 
 class App_kline(QApplication):
