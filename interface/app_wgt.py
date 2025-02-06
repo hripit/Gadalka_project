@@ -1,20 +1,59 @@
 import copy
+import random
 
 from PyQt6.QtCore import *
 from PyQt6.QtGui import *
 from PyQt6.QtWidgets import *
 from PyQt6.QtCharts import *
-from interface.app_param import message_md, mem_app
+from interface.app_param import message_md, mem_app, orders_imd, orders_model, stop_thread
 from interface.app_uti import compare_message, set_mini_symbols
-from interface.binance_data import get_balance_info, get_all_rules
+from interface.binance_data import get_balance_info, get_all_rules, get_tradeFee
 from pg_base.select_pg import get_coin, get_symbols
+from interface.bi_socket import order_thread
 
-
-def focuses_md():
-    print(1)
-
-
+from interface.symbol_chart import chart_param, update_chart_param
 params = dict()
+
+
+def set_orders_model():
+    orders_model.clear()
+
+    orders_model.setHorizontalHeaderLabels(["Symbol",
+                                            "ORDER_ID", "Pocket_out", "Side", "Price", "Status", "Pocket_in",
+                                            "ORDER_ID", "Pocket_out", "Side", "Price", "Status", "Pocket_in",
+                                            "Interval", "Profit", "Spread"])
+    for symbol in mem_app['params']['symbols'].values():
+        ind_list = list(symbol['index_model'].values())
+        orders_model.appendRow(ind_list)
+
+
+def set_orders_imd():
+    trades_ind = dict()
+
+    for symbol in mem_app['params']['symbols'].values():
+        symbol['index_model'] = copy.deepcopy(trades_ind)
+        symbol['index_model']['Symbol'] = QStandardItem('None')
+        symbol['index_model']['FIRST_ORDER'] = QStandardItem('...')
+        symbol['index_model']['Pocket_out_1'] = QStandardItem('None')
+        symbol['index_model']['Side_1'] = QStandardItem('None')
+        symbol['index_model']['Price_1'] = QStandardItem('None')
+        symbol['index_model']['Status_1'] = QStandardItem('None')
+        symbol['index_model']['Pocket_in_1'] = QStandardItem('None')
+        symbol['index_model']['SECOND_ORDER'] = QStandardItem('...')
+        symbol['index_model']['Pocket_out_2'] = QStandardItem('None')
+        symbol['index_model']['Side_2'] = QStandardItem('None')
+        symbol['index_model']['Price_2'] = QStandardItem('None')
+        symbol['index_model']['Status_2'] = QStandardItem('None')
+        symbol['index_model']['Pocket_in_2'] = QStandardItem('None')
+        symbol['index_model']['Interval'] = QStandardItem('None')
+        symbol['index_model']['Profit'] = QStandardItem('None')
+        symbol['index_model']['Spread'] = QStandardItem('None')
+
+    mem_app['stop_thread'] = False
+
+    set_orders_model()
+
+    order_thread()
 
 
 def get_all_symbols(coin):
@@ -44,17 +83,24 @@ def get_all_symbols(coin):
 
         symbols = [n for n in symbols if n['symbol'] in pg_symbols]
 
-    return symbols
+    symbol_dict = dict()
+    for symbol in symbols:
+        symbol_dict[symbol['symbol']] = symbol
+
+    return symbol_dict
 
 
 def init_params(coin):
+    mem_app['stop_thread'] = True
+
     params['coin'] = get_coin('BINANCE:timeless', coin)[0]
     if not params['coin']:
         message_md.appendRow(compare_message(f'Сбой инициализации монеты...'))
         return
     message_md.appendRow(compare_message(f'Выполнена инициализация монеты {params['coin']}'))
 
-    params['balance'] = get_balance_info(coin=params['coin'][1])['free']
+    # params['balance'] = get_balance_info(coin=params['coin'][1])['free']
+    params['balance'] = '100'
     if not params['balance']:
         message_md.appendRow(compare_message(f'Отказ получения баланса по монете: {params['coin']}'))
         return
@@ -69,23 +115,27 @@ def init_params(coin):
         return
 
     message_md.appendRow(compare_message(f'Получена информация по символам : '
-                                         f'[{params['symbols'][0]['symbol']}] ... '
-                                         f'[{params['symbols'][-1]['symbol']}], '
                                          f'всего: [{len(params['symbols'])}]'))
+    orders_imd.clear()
 
-    for symbol in params['symbols']:
-        order_dict = dict()
-        order_dict['open_time'] = None
-        order_dict['pocket_out'] = None
-        order_dict['coin_out'] = None
-        order_dict['price'] = None
-        order_dict['status'] = None
-        order_dict['pocket_in'] = None
-        order_dict['coin_in'] = None
+    for symbol in params['symbols'].values():
+        order_dict = None
 
         symbol['TRADES'] = {'order_1': copy.deepcopy(order_dict), 'order_2': copy.deepcopy(order_dict)}
-        symbol['TRADES']['total'] = {'interval': None, 'profit': None}
-        print(params['coin'], symbol)
+        symbol['TRADES']['total'] = {'interval': None, 'profit': None, 'spread': None}
+
+        orders_imd[symbol['symbol']] = dict()
+        symbol['socket_price'] = None
+        symbol['thread'] = None
+
+        symbol['fee'] = get_tradeFee(symbol['symbol'])[0]['makerCommission']
+        symbol['margin'] = 0.2 / 100
+        symbol['calcu_flag'] = False
+
+    mem_app['params'] = params
+
+    set_orders_imd()
+
 
 
 def coinChanged(coin):
@@ -135,7 +185,8 @@ class Pocket_volume(QFrame):
 
         self.update_timer = QTimer(self)
         self.update_timer.timeout.connect(self.update_wgt)
-        self.update_timer.start(99)
+        self.update_timer.setInterval(1000)
+        self.update_timer.start()
 
     def update_wgt(self):
         if params:
@@ -144,6 +195,27 @@ class Pocket_volume(QFrame):
 
     def start_trade(self):
         init_params(self.coin.currentText())
+
+
+# Шаг 2: Обработчик события выделения и снятия выделения
+def on_selection_changed(selected: QItemSelection, deselected: QItemSelection):
+    # Обработка выделения строк
+
+    for index in selected.indexes():
+        if index.column() == 0:
+            row = index.row()
+            symbol = orders_model.data(orders_model.index(row, 0))
+            chart_param[symbol] = dict()
+
+    for index in deselected.indexes():
+        if index.column() == 0:
+            row = index.row()
+            symbol = orders_model.data(orders_model.index(row, 0))
+            chart_param[symbol]['stop_thread'] = True
+
+            chart_param.pop(symbol)
+
+    update_chart_param()
 
 
 class Calculate_orders(QFrame):
@@ -155,29 +227,46 @@ class Calculate_orders(QFrame):
         self.lay = QVBoxLayout()
         self.lay.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
 
-        self.table_model = QStandardItemModel()
-        self.table_model.setColumnCount(3)
-        self.table_model.setRowCount(12)
-        self.table_model.setHorizontalHeaderLabels(['Symbol', 'First_id', 'Pocket_out', 'Price', 'Pocket_in', 'Satus',
-                                                    'Second_id', 'Pocket_out', 'Price', 'Pocket_in', 'Status',
-                                                    'Time_left', 'Profit'])
-        self.table_view = QTableView(self)
-        self.table_view.setModel(self.table_model)
+        self.table_view = QTableView()
+        self.model = orders_model
+
+        self.table_view.setModel(self.model)
         self.table_view.setSortingEnabled(True)
+
+        self.table_view.setColumnWidth(2, 120)
+        self.table_view.setColumnWidth(3, 40)
+        self.table_view.setColumnWidth(6, 120)
+        self.table_view.setColumnWidth(8, 120)
+        self.table_view.setColumnWidth(9, 40)
+        self.table_view.setColumnWidth(12, 120)
+
+        # Настройка режима выделения для выделения всей строки
+        self.table_view.setSelectionBehavior(QTableView.SelectionBehavior.SelectRows)
+        self.table_view.setSelectionMode(QTableView.SelectionMode.MultiSelection)
+
+        # Настройка горизонтального заголовка
+        horizontal_header = self.table_view.horizontalHeader()
+        horizontal_header.setDefaultSectionSize(80)
+        horizontal_header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+
+        # Подключаем обработчик события выделения
+        selection_model = self.table_view.selectionModel()
+        selection_model.selectionChanged.connect(on_selection_changed)
 
         self.lay.addWidget(self.header_text)
         self.lay.addWidget(self.table_view)
 
         self.setLayout(self.lay)
 
-        self.update_timer = QTimer(self)
-        self.update_timer.timeout.connect(self.update_wgt)
-        self.update_timer.start(99)
-
-    def update_wgt(self):
-        if params:
-            print(1)
-
+    # def update_wgt(self):
+    #     if orders_imd:
+    #         for order_key in orders_imd.keys():
+    #             if mem_app['params']['symbols'][order_key]['TRADES']['order_1']:
+    #                 order_1 = mem_app['params']['symbols'][order_key]['TRADES']['order_1']
+    #
+    #                 orders_imd[order_key]['Pocket_out_first'].setText(f"{order_1[0][0]} : {order_1[0][1]}")
+    #                 orders_imd[order_key]['Price_first'].setText(f"{order_1[1]} : {order_key}")
+    #                 orders_imd[order_key]['Pocket_in_first'].setText(f"{order_1[3][0]} : {order_1[3][1]}")
 
 
 class Project_GADALKA(QFrame):
@@ -189,6 +278,7 @@ class Project_GADALKA(QFrame):
         self.lay = QVBoxLayout()
         self.header_text = QLabel('@BIT_GADALKA')
         self.lay.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        self.setMinimumHeight(200)
 
         self.table_model = QStandardItemModel()
         self.table_model.setColumnCount(3)
@@ -210,9 +300,13 @@ class Bottom_form(QFrame):
         self.lay.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignCenter)
 
         self.red_btn = QPushButton('Press me')
+        self.red_btn.clicked.connect(self.lets_trade)
 
         self.lay.addWidget(self.red_btn)
         self.setLayout(self.lay)
+
+    def lets_trade(self):
+        mem_app['stop_thread'] = True
 
 
 class Messages(QFrame):

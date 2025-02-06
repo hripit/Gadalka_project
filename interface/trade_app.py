@@ -4,12 +4,13 @@ import sys, datetime
 from PyQt6.QtCore import *
 from PyQt6.QtGui import *
 from PyQt6.QtWidgets import *
-from PyQt6.QtCharts import *
+from PyQt6.QtCharts import QChart, QChartView
 
 from interface.app_param import message_md, mem_app, schema_md, layer_md
 from interface.app_uti import compare_message
 from interface.app_wgt import Pocket_volume, Project_GADALKA, Calculate_orders, Bottom_form, Messages, layers_cmb
 from pg_base.select_pg import get_all_schema, select_layers
+from interface.symbol_chart import Chart
 
 
 def set_basic_md():
@@ -49,6 +50,9 @@ def init():
 
     set_basic_md()
 
+    mem_app['params'] = None
+    mem_app['stop_thread'] = False
+
     message_md.appendRow(compare_message('Инициализация параметров выполнена...'))
 
 
@@ -84,12 +88,12 @@ class Timer_wgt(QFrame):
 
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.set_update)
-        self.timer.start(99)
+        self.timer.setInterval(999)
+        self.timer.start()
 
     def set_update(self):
         self.time = str(datetime.datetime.now(datetime.UTC).strftime('%Y.%m.%d %H:%M:%S'))
         self.LCD.display(self.time)
-
 
 
 class Middle_frame(QFrame):
@@ -131,12 +135,17 @@ class Chart_form(QFrame):
         # self.setFrameStyle(QFrame.Shape.Panel | QFrame.Shadow.Plain)
         self.setMinimumHeight(300)
 
-        self.chart = QChartView()
+        self.chart = Chart()
+        self.chart.setTitle("Dynamic average prices:")
+        self.chart.legend().hide()
+        self.chart.setAnimationOptions(QChart.AnimationOption.AllAnimations)
+        self.chart_view = QChartView(self.chart)
+        self.chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         # self.chart.setChart(Kline_chart())
 
         self.lay = QVBoxLayout()
-        self.lay.addWidget(self.chart)
+        self.lay.addWidget(self.chart_view)
         self.setLayout(self.lay)
 
 
@@ -162,7 +171,7 @@ class Trade_frame(QFrame):
         self.lay = QVBoxLayout()
         self.lay.addWidget(Pocket_volume(self))
         self.lay.addWidget(Calculate_orders(self))
-        self.lay.addWidget(Project_GADALKA(self))
+        # self.lay.addWidget(Project_GADALKA(self))
         self.lay.addWidget(Bottom_form(self))
         self.setLayout(self.lay)
 
@@ -195,6 +204,26 @@ class Main_window(QMainWindow):
         self.setCentralWidget(self.frame1)
         self.showMaximized()
 
+    def closeEvent(self, event):
+        # Отображаем диалоговое окно с вопросом о закрытии
+        reply = QMessageBox.question(
+            self,
+            "Подтверждение",
+            "Вы действительно хотите закрыть это окно?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
+        )
+
+        if reply == QMessageBox.StandardButton.Yes:
+            # Если пользователь согласен на закрытие, продолжаем процесс закрытия
+            mem_app['stop_thread'] = True
+            event.accept()
+            print("Окно закрывается...")
+        else:
+            # В противном случае игнорируем событие закрытия
+            event.ignore()
+            print("Закрытие отменено.")
+
     #     self.update_timer = QTimer(self)
     #     self.update_timer.timeout.connect(self.update_wgt)
     #     self.update_timer.start(99)
@@ -202,8 +231,6 @@ class Main_window(QMainWindow):
     # def update_wgt(self):
     #
     #     print(1)
-
-
 
 
 class App_kline(QApplication):

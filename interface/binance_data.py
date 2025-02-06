@@ -46,3 +46,22 @@ def get_balance_info(coin=None):
         response = {}
 
     return response
+
+
+def get_tradeFee(sym: str = None):
+    connection = get_connection_binance()
+    while not connection:
+        connection = get_connection_binance()
+    print(f'{date_now()}: Запросим данные с биржи о комиссии по монете: [{sym}]')
+
+    try:
+        if sym:
+            response = connection.trade_fee(symbol=sym)
+        else:
+            response = connection.trade_fee()
+    except ClientError as error:
+        print("Хуйня вышла-с get_tradeFee(sym: str = None): {}, error code: {}, error message: {}".format(
+            error.status_code, error.error_code, error.error_message))
+        response = None
+
+    return response

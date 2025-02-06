@@ -50,12 +50,16 @@ def set_mini_symbols(symbol):
     min_qty = get_filter_value('minQty', symbol)
     min_price = get_filter_value('tickSize', symbol)
     precision = get_digital(min_qty) + get_digital(min_price)
+    bp = '0.' + ''.join("0" for i in range(int(symbol['baseAssetPrecision'])-1)) + "1"
+    qp = '0.' + ''.join("0" for i in range(int(symbol['quoteAssetPrecision'])-1)) + "1"
 
     mini = {'format_prec': format_prec,
             'format_prec_order': format_prec_order,
-            'min_qty': (Decimal(min_qty), get_digital(min_qty)),
-            'min_price': (Decimal(min_price), get_digital(min_price)),
-            'precision': (get_prec_min(precision), precision)
+            'min_qty': (Decimal(min_qty).normalize(), get_digital(min_qty)),
+            'min_price': (Decimal(min_price).normalize(), get_digital(min_price)),
+            'precision': (get_prec_min(precision).normalize(), precision),
+            'baseAssetPrecision': Decimal(bp),
+            'quoteAssetPrecision': Decimal(qp)
             }
 
     symbol['MINIS'] = mini
