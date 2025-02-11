@@ -12,6 +12,7 @@ from pg_base.select_pg import get_coin, get_symbols
 from interface.bi_socket import order_thread
 
 from interface.symbol_chart import chart_param, update_chart_param
+
 params = dict()
 
 
@@ -33,6 +34,8 @@ def set_orders_imd():
     for symbol in mem_app['params']['symbols'].values():
         symbol['index_model'] = copy.deepcopy(trades_ind)
         symbol['index_model']['Symbol'] = QStandardItem('None')
+        symbol['index_model']['Symbol'].setData(symbol['COLOR'], Qt.ItemDataRole.ForegroundRole)
+
         symbol['index_model']['FIRST_ORDER'] = QStandardItem('...')
         symbol['index_model']['Pocket_out_1'] = QStandardItem('None')
         symbol['index_model']['Side_1'] = QStandardItem('None')
@@ -54,6 +57,22 @@ def set_orders_imd():
     set_orders_model()
 
     order_thread()
+
+
+def generate_colors(symbols):
+    """Генерирует уникальные цвета для каждого значения из списка."""
+    num_values = len(symbols)
+    for i, symbol in enumerate(symbols):
+        # Генерируем случайный цвет
+        # Генерируем цвет на основе индекса элемента
+        hue = (i * 360) // num_values  # Распределяем оттенки равномерно по всему кругу
+        saturation = 255  # Максимальная насыщенность
+        value_level = 200  # Яркость
+
+        color = QColor()
+        color.setHsv(hue, saturation, value_level)
+
+        symbols[symbol]['COLOR'] = color
 
 
 def get_all_symbols(coin):
@@ -86,6 +105,8 @@ def get_all_symbols(coin):
     symbol_dict = dict()
     for symbol in symbols:
         symbol_dict[symbol['symbol']] = symbol
+
+    generate_colors(symbol_dict)
 
     return symbol_dict
 
@@ -135,7 +156,6 @@ def init_params(coin):
     mem_app['params'] = params
 
     set_orders_imd()
-
 
 
 def coinChanged(coin):
@@ -227,7 +247,7 @@ class Calculate_orders(QFrame):
         self.lay = QVBoxLayout()
         self.lay.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
 
-        self.table_view = QTableView()
+        self.table_view = QTableView(self)
         self.model = orders_model
 
         self.table_view.setModel(self.model)
@@ -257,16 +277,6 @@ class Calculate_orders(QFrame):
         self.lay.addWidget(self.table_view)
 
         self.setLayout(self.lay)
-
-    # def update_wgt(self):
-    #     if orders_imd:
-    #         for order_key in orders_imd.keys():
-    #             if mem_app['params']['symbols'][order_key]['TRADES']['order_1']:
-    #                 order_1 = mem_app['params']['symbols'][order_key]['TRADES']['order_1']
-    #
-    #                 orders_imd[order_key]['Pocket_out_first'].setText(f"{order_1[0][0]} : {order_1[0][1]}")
-    #                 orders_imd[order_key]['Price_first'].setText(f"{order_1[1]} : {order_key}")
-    #                 orders_imd[order_key]['Pocket_in_first'].setText(f"{order_1[3][0]} : {order_1[3][1]}")
 
 
 class Project_GADALKA(QFrame):

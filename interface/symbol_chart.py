@@ -1,5 +1,6 @@
 import datetime
 
+from PyQt6.QtCore import QDateTime, QPointF
 from PyQt6.QtCharts import *
 from threading import Thread
 from binance.spot import Spot
@@ -11,30 +12,219 @@ from decimal import Decimal
 import statistics
 from json import dumps, loads
 import websocket
-
-import random
-
+from interface.app_param import message_md, mem_app
+from uti import date_now, convert_from_timestamp
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QPen, QColor
 
-max_minutes = 60 * 3
+# from PyQt6.QtGui import QPen, QColor
+
+max_minutes = int(60 * 16)
+
 chart_param = dict()
 # Секция хранения параметров подключения API Binance
 PARAMS_BI = {"api_key": None, 'api_secret': None}
 
 
-def get_series_by_name(chart: QChart, series_name: str):
-    """
-    Возвращает серию из графика по её имени.
+def remove_series_from_chart(chart: QChart):
+    # Удалим серию если сняли выделение
+    series_names = [series.objectName() for series in chart.series()]
 
-    :param chart: Объект QChart, содержащий серии.
-    :param series_name: Имя серии для поиска.
-    :return: Найденная серия или None, если серия не найдена.
-    """
-    for series in chart.series():  # Перебираем все серии графика
-        if series.name() == series_name:  # Сравниваем имя серии
-            return series
-    return None
+    for se_name in series_names:
+        if se_name not in chart_param.keys():
+            for series in chart.series():
+                if series.objectName() == se_name:
+                    axes_to_remove = [axis for axis in series.attachedAxes() if isinstance(axis, QValueAxis)]
+                    for axis in axes_to_remove:
+                        series.detachAxis(axis)
+                        chart.removeAxis(axis)
+                    chart.removeSeries(series)
+
+
+def create_x_axis() -> QDateTimeAxis:
+    # Создаем оси
+    axis_x = QDateTimeAxis()
+    axis_x.setFormat("hh:mm")
+    axis_x.setTitleText("Время:")
+
+    axis_x.setGridLineVisible(True)
+
+    start_dt = datetime.datetime.now() - datetime.timedelta(minutes=max_minutes)
+    start_dt = start_dt.replace(second=0, minute=0, microsecond=0, tzinfo=None)
+
+    end_dt = datetime.datetime.now() + datetime.timedelta(minutes=10)
+    end_dt = end_dt.replace(second=0, microsecond=0, tzinfo=None)
+    n_end_dt = end_dt.replace(minute=0, second=0, microsecond=0, tzinfo=None)
+
+    if n_end_dt < end_dt:
+        end_dt = n_end_dt + datetime.timedelta(minutes=60)
+        end_dt = end_dt.replace(minute=0, second=0, microsecond=0, tzinfo=None)
+
+    time_difference = end_dt - start_dt
+
+    start_dt = int(start_dt.timestamp())
+    start_dt = QDateTime.fromSecsSinceEpoch(start_dt)
+    end_dt = int(end_dt.timestamp())
+    end_dt = QDateTime.fromSecsSinceEpoch(end_dt)
+
+    axis_x.setRange(start_dt, end_dt)
+
+    # Преобразуем разницу в часы
+    hours_diff = int(abs(time_difference.total_seconds() / 3600))
+    axis_x.setTickCount(hours_diff + 1)
+
+    return axis_x
+
+
+global_axis_x = create_x_axis()
+
+
+class Trade_area(QAreaSeries):
+    def __init__(self, symbol: str, trade: tuple, parent=None):
+        super().__init__(parent)
+
+        self.max_x = None
+        self.min_x = None
+        self.trade = trade
+
+        self.symbol = symbol
+        # Создаем первую горизонтальную линию (верхняя граница)
+        self.upper_series = QLineSeries()
+        self.min_x = global_axis_x.min().toSecsSinceEpoch() * 1000
+        self.max_x = global_axis_x.max().toSecsSinceEpoch() * 1000
+
+        self.upper_series.append(float(self.min_x), self.trade[1])
+        self.upper_series.append(float(self.max_x), self.trade[1])
+
+        # Создаем вторую горизонтальную линию (нижняя граница)
+        self.lower_series = QLineSeries()
+        self.lower_series.append(float(self.min_x), self.trade[0])
+        self.lower_series.append(float(self.max_x), self.trade[0])
+
+        # Создаем область (area) между двумя линиями
+        self.setObjectName(self.symbol)
+        self.setLowerSeries(self.lower_series)
+        self.setUpperSeries(self.upper_series)
+
+        self.setPen(mem_app['params']['symbols'][symbol]['COLOR'])  # Цвет заливки
+        self.setBrush(Qt.GlobalColor.transparent)
+
+    def update(self):
+        self.lower_series.removePoints(0, 2)
+        self.lower_series.append(float(self.min_x), self.trade[0])
+        self.lower_series.append(float(self.max_x), self.trade[0])
+
+        self.upper_series.removePoints(0, 2)
+        self.upper_series.append(float(self.min_x), self.trade[1])
+        self.upper_series.append(float(self.max_x), self.trade[1])
+
+
+class Axis_Y(QValueAxis):
+    def __init__(self, symbol: str, min_max: list, parent=None):
+        super().__init__(parent)
+
+        self.tol = Decimal('0.009')
+        self.min_max = min_max
+
+        self.min_value = float(Decimal(self.min_max[0]) * (Decimal('1') - self.tol))
+        self.max_value = float(Decimal(self.min_max[1]) * (Decimal('1') + self.tol))
+
+        self.symbol = symbol
+
+        self.setTitleText(symbol)
+        self.setLabelsVisible(False)
+        self.setGridLineVisible(False)
+
+        self.setRange(float(self.min_value), float(self.max_value))
+        self.setTitleBrush(mem_app['params']['symbols'][symbol]['COLOR'])
+
+    def update(self):
+        self.min_value = float(Decimal(self.min_max[0]) * (Decimal('1') - self.tol))
+        self.max_value = float(Decimal(self.min_max[1]) * (Decimal('1') + self.tol))
+
+        if self.min() >= self.min_value or self.max() <= self.max_value:
+            self.setRange(self.min_value, self.max_value)
+
+
+# def create_y_axis(symbol) -> QValueAxis:
+#     """Создает ось Y с заданным заголовком, минимальным и максимальным значениями."""
+#     axis = QValueAxis()
+#     axis.setTitleText(symbol)
+#     axis.setObjectName(symbol)
+#     axis.setLabelsVisible(False)
+#     axis.setGridLineVisible(False)
+#
+#     price_list = list(price[1] for price in chart_param[symbol]['kline'].items())
+#     min_value = min(price_list)
+#     min_value = min_value * (Decimal('1') - Decimal('0.001'))
+#     max_value = max(price_list)
+#     max_value = max_value * (Decimal('1') + Decimal('0.001'))
+#
+#     axis.setRange(float(min_value), float(max_value))
+#     axis.setTitleBrush(mem_app['params']['symbols'][symbol]['COLOR'])
+#
+#     return axis
+
+
+def create_price_area(symbol: str) -> QSplineSeries:
+    new_series = QSplineSeries()
+    new_series.setColor(mem_app['params']['symbols'][symbol]['COLOR'])
+
+    new_series.setObjectName(symbol)
+
+    for line in chart_param[symbol]['kline'].items():
+        # dtime = (line[0].timestamp() * 1000)
+
+        point = QPointF(line[0], float(line[1]))
+        new_series.append(point)
+
+    return new_series
+
+
+def update_price_series(symbol: str, price_data):
+    def has_point_on_x(x_value):
+        """
+        Проверяет наличие точки с заданным значением X в серии.
+
+        :param x_value: Значение X для проверки.
+        :return: True, если такая точка существует, иначе False.
+        """
+        x = list(poi.x() for poi in series.points())
+        # print(convert_from_timestamp(x[-1]), convert_from_timestamp(x_value))
+        return x_value in x
+
+    def get_min_max_y():
+        list_y = list(value_y.y() for value_y in series.points())
+        return min(list_y), max(list_y)
+
+    series = chart_param[symbol]['series']['price_area']
+    dt = float(price_data['k']['t'])
+
+    avg_price = statistics.mean([Decimal(price_data['k']['l']), Decimal(price_data['k']['h'])])
+
+    if not series.points():
+        return
+
+    if not has_point_on_x(dt):
+        point = QPointF(dt, float(avg_price))
+        series.append(point)
+
+        series.removePoints(0, 1)
+
+        # Дополнить сдвиг по оси Y если вышли за пределы значений
+        min_max = get_min_max_y()
+
+        axis_y = list(series.attachedAxes())[1]
+
+        if axis_y.min() >= float(min_max[0]) * (1 - 0.001):
+            axis_y.setMin(float(min_max[0]) * (1 - 0.001))
+
+        if axis_y.max() <= float(min_max[1]) * (1 + 0.001):
+            axis_y.setMax(float(min_max[1]) * (1 + 0.001))
+
+
+def update_trade_area(symbol, price_1, price_2) -> QAreaSeries:
+    trade_area = QAreaSeries()
+    return trade_area
 
 
 class Chart(QChart):
@@ -43,81 +233,84 @@ class Chart(QChart):
 
         self.setTheme(QChart.ChartTheme.ChartThemeDark)
 
-        # Создаем оси
-        self.axis_x = QDateTimeAxis(self)
-        self.axis_x.setFormat("dd.MM.yyyy hh:mm:ss")
-        self.axis_x.setTitleText("Время:")
-        # d_times = [datetime.datetime.now(datetime.UTC) - datetime.timedelta(minutes=max_minutes+5),
-        #            datetime.datetime.now(datetime.UTC) + datetime.timedelta(minutes=5)]
-        # self.axis_x.setRange(min(d_times), max(d_times))
-        self.axis_x.setGridLineVisible(True)
-        self.axis_x.setTickCount(6)  # Динамический тип меток
-        self.addAxis(self.axis_x, Qt.AlignmentFlag.AlignBottom)
-
-    #
+        # Настраиваем динамику графика по интервалу
         self.timer = QTimer()
-    #
         self.timer.timeout.connect(self.handleTimeout)
         self.timer.setInterval(1000)
-    #
+        #
         self.timer.start()
-    #
+
+    def has_axis(self, axis):
+        """
+        Проверяет наличие оси в графике.
+
+        :return: True, если такая ось существует, иначе False.
+        """
+        all_axes = self.axes()
+        if axis in all_axes:
+            return True
+        return False
+
+    def has_series(self, series_obj):
+        """
+        Ищет серию по частичному совпадению имени.
+
+        :param series_obj:
+        :return: Найденную серию или None, если серия не найдена.
+        """
+        if series_obj in self.series():
+            return True
+        return False
 
     def handleTimeout(self):
-        series = self.series()
-        # Удалим серию если сняли выделение
-        series_names = [series.name() for series in self.series()]
-        for se_names in series_names:
-            if se_names not in chart_param.keys():
-                for series in self.series():
-                    if series.name() == se_names:
-                        self.removeSeries(series)
+
+        remove_series_from_chart(self)
 
         for symbol in chart_param:
-            if 'kline' not in chart_param[symbol]:
-                return
+            if 'series' in chart_param[symbol]:
 
-            target_series = get_series_by_name(self, symbol)
+                if 'price_area' in chart_param[symbol]['series']:
+                    if not self.has_series(chart_param[symbol]['series']['price_area']):
+                        self.addSeries(chart_param[symbol]['series']['price_area'])
 
-            if target_series:
-                kline_keys = [x for x in chart_param[symbol]['kline'].keys()]
-                kline_values = [x for x in chart_param[symbol]['kline'].values()]
+                    if not self.has_axis(global_axis_x):
+                        self.addAxis(global_axis_x, Qt.AlignmentFlag.AlignBottom)
 
-                xp = list()
-                points = target_series.points()  # Получаем все точки серии
-                for point in points:
-                    xp.append(point.x())
+                    chart_param[symbol]['series']['price_area'].attachAxis(global_axis_x)
 
-                if not kline_keys[-1].timestamp() in xp:
-                    target_series.append(kline_keys[-1].timestamp(), kline_values[-1])
-                    target_series.removePoints(0, 1)
+                    if 'axis_y' in chart_param[symbol]['series']:
+                        if not self.has_axis(chart_param[symbol]['series']['axis_y']):
+                            chart_param[symbol]['series']['axis_y'].parent = self
+                            self.addAxis(chart_param[symbol]['series']['axis_y'], Qt.AlignmentFlag.AlignLeft)
+                        else:
+                            price_points = list(point.y()
+                                                for point in chart_param[symbol]['series']['price_area'].points())
+                            trade_points = (chart_param[symbol]['series']['trade_area'].trade[0],
+                                            chart_param[symbol]['series']['trade_area'].trade[1])
 
-                    # Находим минимальное и максимальное значения X
-                    min_x = min(points, key=lambda point: point.x()).x()
-                    max_x = max(points, key=lambda point: point.x()).x()
+                            min_value = min(min(price_points), min(trade_points))
+                            max_value = max(max(price_points), max(trade_points))
 
-                    min_x = convert_from_timestamp(min_x) - datetime.timedelta(minutes=5)
-                    max_x = convert_from_timestamp(max_x) + datetime.timedelta(minutes=5)
-                    # Обновляем диапазон оси X
-                    self.axis_x.setRange(min_x, max_x)
+                            chart_param[symbol]['series']['axis_y'].min_max = (min_value, max_value)
+                            chart_param[symbol]['series']['axis_y'].update()
 
-            else:
-                se = QSplineSeries(self)
-                se.setName(symbol)
+                        chart_param[symbol]['series']['price_area'].attachAxis(chart_param[symbol]['series']['axis_y'])
 
-                axis_y = QValueAxis(self)
-                axis_y.setGridLineVisible(False)
-                axis_y.setLabelsVisible(False)
+                if 'trade_area' in chart_param[symbol]['series']:
+                    if not self.has_series(chart_param[symbol]['series']['trade_area']):
+                        chart_param[symbol]['series']['trade_area'].parent = self
+                        self.addSeries(chart_param[symbol]['series']['trade_area'])
+                        chart_param[symbol]['series']['trade_area'].attachAxis(global_axis_x)
+                        chart_param[symbol]['series']['trade_area'].attachAxis(chart_param[symbol]['series']['axis_y'])
 
-                # Добавляем оси к графику
-                self.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
-                # Привязываем оси к графикам
-                se.attachAxis(self.axis_x)
-                se.attachAxis(axis_y)
-                for line in chart_param[symbol]['kline'].items():
-                    se.append(line[0].timestamp(), line[1])
+                    else:
+                        # Обновим область
+                        price_1 = mem_app['params']['symbols'][symbol]['TRADES']['order_1'][2]
+                        price_2 = mem_app['params']['symbols'][symbol]['TRADES']['order_2'][2]
+                        trade = (min(price_1, price_2), max(price_1, price_2))
 
-                self.addSeries(se)
+                        chart_param[symbol]['series']['trade_area'].trade = trade
+                        chart_param[symbol]['series']['trade_area'].update()
 
 
 def get_connection_binance():
@@ -170,7 +363,7 @@ def kline_socket(symbol):
         }
 
         self.send(dumps(subscribe_message))
-        print(colored(f"{date_now()}: Открытие kline сокета для символа [{self.header['symbol']}]"), 'green')
+        print(colored(f"{date_now()}: Открытие kline сокета для символа [{self.header['symbol']}]", 'green'))
 
     def on_message_price(self, message):
         if not chart_param:
@@ -188,22 +381,14 @@ def kline_socket(symbol):
         price_data = loads(message)
 
         if len(price_data) > 3:
-
-            dtime = convert_from_timestamp(price_data['k']['T']).replace(second=0)
-            avg_price = statistics.mean([Decimal(price_data['k']['h']), Decimal(price_data['k']['l'])])
-
-            chart_param[self.header['symbol']]['kline'][dtime] = avg_price
-            keys = list(chart_param[self.header['symbol']]['kline'].keys())
-            if len(keys) > max_minutes:
-                chart_param[self.header['symbol']]['kline'].pop(keys[0])
-
+            update_price_series(symbol, price_data)
 
     def error_price(self, message):
         print(message, self, "kline")
         self.close()
 
     def close_price(self, status, message):
-        print(colored(f"{date_now()}: Закрытие kline сокета для символа [{self.header['symbol']}]"), 'red')
+        print(colored(f"{date_now()}: Закрытие kline сокета для символа [{self.header['symbol']}]", 'red'))
 
     socket = 'wss://stream.binance.com:9443/ws'
     websocket.WebSocketApp(socket,
@@ -220,22 +405,27 @@ def chart_thread(symbol):
     end_date = datetime.datetime.now(datetime.UTC) - datetime.timedelta(minutes=1)
     start_date = end_date - datetime.timedelta(minutes=max_minutes)
     kline = (kline_data_1m(symbol, convert_to_timestamp(start_date), convert_to_timestamp(end_date)))
+
     kl_dict = dict()
     for line in kline:
-        dtime = convert_from_timestamp(line[0])
+        dtime = line[0]
         avg_price = statistics.mean([Decimal(line[2]), Decimal(line[3])])
         kl_dict[dtime] = avg_price
 
     chart_param[symbol]['kline'] = kl_dict
 
-    chart_param[symbol]['current_deal'] = [None, None]
+    # chart_param[symbol]['current_deal'] = [None, None]
 
-    chart_param[symbol]['model'] = None
-    # chart_param[symbol]['stop_thread'] = False
+    chart_param[symbol]['series'] = dict()
+    chart_param[symbol]['series']['axis_y'] = Axis_Y(symbol=symbol, min_max=[0, 0], parent=None)
+    chart_param[symbol]['series']['price_area'] = create_price_area(symbol)
+    # Обновим область
+    price_1 = mem_app['params']['symbols'][symbol]['TRADES']['order_1'][2]
+    price_2 = mem_app['params']['symbols'][symbol]['TRADES']['order_2'][2]
+    trade = (min(price_1, price_2), max(price_1, price_2))
+    chart_param[symbol]['series']['trade_area'] = Trade_area(symbol, trade)
 
     kline_socket(symbol)
-
-
 
 
 def update_chart_param():
@@ -243,4 +433,3 @@ def update_chart_param():
         if 'stop_thread' not in chart_param[symbol]:
             chart_param[symbol]['stop_thread'] = False
             Thread(target=chart_thread, args=(symbol,)).start()
-

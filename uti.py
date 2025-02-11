@@ -32,8 +32,8 @@ def convert_to_timestamp(date_time: datetime):
     return int(round(date_time.timestamp())) * 1000
 
 
-def convert_from_timestamp(dtime):
-    return datetime.fromtimestamp(int(dtime / 1000), UTC).replace(tzinfo=None)
+def convert_from_timestamp(dtime) -> datetime:
+    return datetime.fromtimestamp(int(dtime / 1000)).replace(tzinfo=None)
 
 
 def date_now():

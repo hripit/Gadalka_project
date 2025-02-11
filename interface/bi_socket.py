@@ -15,7 +15,7 @@ from uti import date_now
 from interface.app_param import message_md, mem_app
 from interface.app_uti import compare_message
 from interface.calcu import calculate_deals
-from interface.symbol_chart import chart_param
+from interface.symbol_chart import chart_param, update_trade_area
 
 green = QBrush(QColor('green'))
 red = QBrush(QColor('red'))
@@ -68,9 +68,9 @@ def update_model(symbol):
         index_model['Profit'].setText(str(total['profit']))
         index_model['Spread'].setText(str(total['spread']))
 
-        if chart_param:
-            if symbol in chart_param:
-                chart_param[symbol]['current_deal'] = [order_1[2], order_2[2]]
+        # if chart_param:
+        #     if symbol in chart_param:
+        #         chart_param[symbol]['trade_area'] = update_trade_area(symbol, order_1[2], order_2[2])
 
 
 def price_socket(symbol):
