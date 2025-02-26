@@ -4,34 +4,30 @@ import pandas as pd
 from sqlalchemy import create_engine
 from parameters import PARAMS_DB
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+from termcolor import colored
+from uti import date_now
 
 DB_ENGINE = create_engine(
-        f'postgresql://{PARAMS_DB["user"]}:{PARAMS_DB["password"]}@{PARAMS_DB["host"]}:{PARAMS_DB["port"]}/{PARAMS_DB["dbname"]}')
+    f'postgresql://{PARAMS_DB["user"]}:{PARAMS_DB["password"]}@{PARAMS_DB["host"]}:{PARAMS_DB["port"]}/{PARAMS_DB["dbname"]}')
 
 
 def get_all_schema():
-    select = '''-- Получим информацию о доступных схемах:
-                    SELECT schema_name FROM information_schema.schemata;'''
+    select = '''-- Получим информацию о доступных схемах: 
+    SELECT schema_name FROM information_schema.schemata;'''
     return get_data(select)
 
 
 def get_symbols_data(schema):
     select = f"""-- Запросим информацию о символах для {schema}
-                    SELECT 
-                        symbol_id
-	                    , TRIM(symbol) 
-	                    FROM "{schema}".symbols_data"""
+                    SELECT symbol_id, TRIM(symbol) FROM "{schema}".symbols_data"""
 
     return get_data(select)
 
 
 def get_open_times(schema, symbol_id):
     select = f"""-- Запросим имеющиеся даты_время по символу 
-                    SELECT  
-                        open_time	
-                    FROM "{schema}".kline_data
-                    WHERE
-                        symbol_id = {symbol_id};"""
+                    SELECT open_time FROM "{schema}".kline_data WHERE symbol_id = {symbol_id};"""
 
     return get_data(select)
 
@@ -39,8 +35,7 @@ def get_open_times(schema, symbol_id):
 def get_available_periods(schema, symbol_id):
     select = f"""-- Запросим минимальную и максимальную дату для исторических данных
                     SELECT  MIN(open_time), date_trunc('minute', now() at time zone ('utc'))
-                    FROM "{schema}".kline_data
-                    WHERE symbol_id={symbol_id};"""
+                    FROM "{schema}".kline_data WHERE symbol_id={symbol_id};"""
 
     return get_data(select)
 
@@ -70,7 +65,7 @@ def select_layers(schema):
 		, md.symbol_id, TRIM(sy.symbol)
 		, md.coin_id, TRIM(co.coin)
 		, md.default
-		
+
 	FROM "{schema}".model_layer md
 	LEFT JOIN "{schema}".symbols_data sy on sy.symbol_id = md.symbol_id
 	LEFT JOIN "{schema}".coin_data co on co.coin_id = md.coin_id
@@ -107,7 +102,7 @@ def get_trader_protokol(schema, not_in):
 		toper.trade_id
 		, toper.symbol_id
 		, TRIM(symbol.symbol)
-		
+
 		, orde_first.order_id
 		, orde_first.body_json
 		, orde_first.platform_uid
@@ -119,7 +114,7 @@ def get_trader_protokol(schema, not_in):
 		, orde_second.platform_uid
 		, second_st.status_id
 		, TRIM(second_st.status_name)		
-	
+
 	FROM "{schema}".trade_operations as toper
 
     LEFT JOIN "{schema}".orders as orde_first on toper.first_id = orde_first.order_id
@@ -127,7 +122,7 @@ def get_trader_protokol(schema, not_in):
 
     LEFT JOIN "{schema}".orders as orde_second on toper.second_id = orde_second.order_id
     LEFT JOIN  "{schema}".orders_status as second_st on second_st.status_id = orde_second.status_id
-	
+
     LEFT JOIN "{schema}".symbols_data as symbol on toper.symbol_id = symbol.symbol_id
 
     WHERE (first_st.status_id not in (2, 3, 99) or second_st.status_id not in (2, 3, 99) ) 

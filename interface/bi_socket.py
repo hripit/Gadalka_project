@@ -15,7 +15,6 @@ from uti import date_now
 from interface.app_param import message_md, mem_app
 from interface.app_uti import compare_message
 from interface.calcu import calculate_deals
-from interface.symbol_chart import chart_param, update_trade_area
 
 green = QBrush(QColor('green'))
 red = QBrush(QColor('red'))
@@ -43,41 +42,27 @@ def update_model(symbol):
         color_2 = green if order_2[3] == 'BUY' else red
 
         index_model['Symbol'].setText(str(symbol))
-        index_model['FIRST_ORDER'].setText('...')
         index_model['Pocket_out_1'].setText(str(order_1[0]))
-
         index_model['Side_1'].setText(order_1[3])
         index_model['Side_1'].setData(color_1, Qt.ItemDataRole.ForegroundRole)
-
         index_model['Price_1'].setText(str(order_1[2]))
-        index_model['Status_1'].setText('idle')
         index_model['Pocket_in_1'].setText(str(order_1[6][0]))
-
         #######
-        index_model['SECOND_ORDER'].setText('...')
         index_model['Pocket_out_2'].setText(str(order_2[0]))
-
         index_model['Side_2'].setText(str(order_2[3]))
         index_model['Side_2'].setData(color_2, Qt.ItemDataRole.ForegroundRole)
-
         index_model['Price_2'].setText(str(order_2[2]))
-        index_model['Status_2'].setText('idle')
         index_model['Pocket_in_2'].setText(str(order_2[6]))
-        # index_model['Fee_2'].setText(str(order_2[5]))
         index_model['Interval'].setText(str(datetime.timedelta(0)))
         index_model['Profit'].setText(str(total['profit']))
         index_model['Spread'].setText(str(total['spread']))
-
-        # if chart_param:
-        #     if symbol in chart_param:
-        #         chart_param[symbol]['trade_area'] = update_trade_area(symbol, order_1[2], order_2[2])
 
 
 def price_socket(symbol):
     def on_open_price(self):
         subscribe_message = {
             "method": "SUBSCRIBE",
-            "params": [f"{self.header['symbol'].lower()}@depth5@100ms"],
+            "params": [f"{self.header['symbol'].lower()}@depth5@1000ms"],
             "id": 0
         }
 
@@ -94,8 +79,6 @@ def price_socket(symbol):
             mem_app['params']['symbols'][symbol]['socket_price'] = price_data
 
             trade_operation(symbol)
-
-            # mem_app['params']['symbols'][symbol]['calcu_flag'] = True
 
     def error_price(self, message):
         print(message, self, "price")

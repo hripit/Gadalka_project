@@ -1,211 +1,152 @@
-import random
-import sys, datetime
-
-from PyQt6.QtCore import *
-from PyQt6.QtGui import *
-from PyQt6.QtWidgets import *
+import sys
+from PyQt6.QtCore import Qt, QTimer, QDateTime
+from PyQt6.QtGui import QPainter, QStandardItem
+from PyQt6.QtWidgets import (
+    QApplication, QMainWindow, QFrame, QHBoxLayout, QVBoxLayout, QSplitter,
+    QTabWidget, QLCDNumber, QMessageBox, QPushButton
+)
 from PyQt6.QtCharts import QChart, QChartView
-
-from interface.app_param import message_md, mem_app, schema_md, layer_md
-from interface.app_uti import compare_message
-from interface.app_wgt import Pocket_volume, Project_GADALKA, Calculate_orders, Bottom_form, Messages, layers_cmb
-from pg_base.select_pg import get_all_schema, select_layers
+from interface.app_param import mem_app
+from interface.app_wgt import PocketVolume, CalculateOrders, BottomForm, Messages, layers_cmb
 from interface.symbol_chart import Chart
+from initialize import initialize_project
 
 
-def set_basic_md():
-    mem_app['models'] = dict()
-
-    mem_app['models']['schemas'] = schema_md
-    mem_app['models']['layers'] = layer_md
-
-
-def init():
-    message_md.clear()
-    message_md.appendRow(compare_message('Инициализируем переменные проекта...'))
-    mem_app.clear()
-
-    message_md.appendRow(compare_message('Инициализируем доступные схемы...'))
-    schemas = get_all_schema()
-    for schema in schemas:
-        if schema[0].find('timeless') != -1:
-            mem_app[schema[0]] = dict()
-            schema_md.appendRow(QStandardItem(schema[0]))
-
-            message_md.appendRow(compare_message('Инициализируем расчетные слои...'))
-            layers = select_layers(schema[0])
-
-            if not layers:
-                message_md.appendRow(compare_message(f'Для схемы: {schema} расчетные слои не обнаружены.'))
-                continue
-
-            for layer in layers:
-                layer_text = (layer[0], f"symbol: {[layer[3], layer[4]]}, "
-                              f"side: {[layer[5], layer[6]]}, "
-                              f"base asset: {layer[1]}, margin: {layer[2]}")
-
-                mem_app[schema[0]][layer_text] = dict()
-                mem_app[schema[0]][layer_text]['default'] = layer[7]
-                layer_md.appendRow(QStandardItem(layer_text[1]))
-
-    set_basic_md()
-
-    mem_app['params'] = None
-    mem_app['stop_thread'] = False
-
-    message_md.appendRow(compare_message('Инициализация параметров выполнена...'))
+# Базовый класс для фреймов с общей конфигурацией
+class BaseFrame(QFrame):
+    def __init__(self, parent=None, style=QFrame.Shape.Panel | QFrame.Shadow.Plain):
+        super().__init__(parent)
+        self.setFrameStyle(style)
 
 
-class Head_frame(QFrame):
+# Верхняя панель с таймером и сообщениями
+class HeadFrame(BaseFrame):
     def __init__(self, parent=None):
-        super(Head_frame, self).__init__(parent)
-        self.setFrameStyle(QFrame.Shape.Panel | QFrame.Shadow.Plain)
-
-        self.setMaximumHeight(800)
-
-        self.lay = QHBoxLayout()
-        self.lay.setAlignment(Qt.AlignmentFlag.AlignTop)
-        self.lay.addWidget(layers_cmb(self))
-        self.lay.addWidget(Messages(self))
-        self.lay.addWidget(Timer_wgt(self))
-
-        self.setLayout(self.lay)
+        super().__init__(parent)
+        self.setMaximumHeight(80)
+        layout = QHBoxLayout()
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        layout.addWidget(layers_cmb(self))
+        layout.addWidget(Messages(self))
+        layout.addWidget(TimerWidget(self))
+        self.setLayout(layout)
 
 
-class Timer_wgt(QFrame):
+# Виджет таймера
+class TimerWidget(BaseFrame):
     def __init__(self, parent=None):
-        super(Timer_wgt, self).__init__(parent)
+        super().__init__(parent, style=QFrame.Shadow.Plain)
         self.setFixedWidth(200)
-        self.setFrameStyle(QFrame.Shadow.Plain)
-        self.LCD = QLCDNumber()
-        self.LCD.setDigitCount(19)
-        self.LCD.setSegmentStyle(QLCDNumber.SegmentStyle.Flat)
-        self.lay = QHBoxLayout()
-        self.lay.addWidget(self.LCD)
-        self.setLayout(self.lay)
-        self.time = str(datetime.datetime.now(datetime.UTC).strftime('%Y.%m.%d %H:%M:%S'))
-        self.LCD.display(self.time)
-
+        layout = QHBoxLayout()
+        self.lcd = QLCDNumber()
+        self.lcd.setDigitCount(19)
+        self.lcd.setSegmentStyle(QLCDNumber.SegmentStyle.Flat)
+        layout.addWidget(self.lcd)
+        self.setLayout(layout)
+        self.update_time()
         self.timer = QTimer(self)
-        self.timer.timeout.connect(self.set_update)
-        self.timer.setInterval(999)
-        self.timer.start()
+        self.timer.timeout.connect(self.update_time)
+        self.timer.start(1000)  # Обновление каждую секунду
 
-    def set_update(self):
-        self.time = str(datetime.datetime.now(datetime.UTC).strftime('%Y.%m.%d %H:%M:%S'))
-        self.LCD.display(self.time)
+    def update_time(self):
+        current_time = QDateTime.currentDateTimeUtc().toString('yyyy.MM.dd HH:mm:ss')
+        self.lcd.display(current_time)
 
 
-class Middle_frame(QFrame):
+# Центральный фрейм с верхней панелью и основным содержимым
+class CentralFrame(BaseFrame):
     def __init__(self, parent=None):
-        super(Middle_frame, self).__init__(parent)
-
-        self.lay = QHBoxLayout()
-
-        self.split = QSplitter()
-        self.split.setOrientation(Qt.Orientation.Horizontal)
-
-        self.left_frame = Left_frame(self)
-        self.right_frame = Right_frame(self)
-
-        self.split.addWidget(self.left_frame)
-        self.split.addWidget(self.right_frame)
-
-        self.lay.addWidget(self.split)
-
-        self.setFrameStyle(QFrame.Shape.Panel | QFrame.Shadow.Plain)
-        self.setLayout(self.lay)
+        super().__init__(parent)
+        layout = QVBoxLayout()
+        self.head_frame = HeadFrame(self)
+        self.head_frame.setFixedHeight(60)
+        self.middle_frame = MiddleFrame(self)
+        layout.addWidget(self.head_frame)
+        layout.addWidget(self.middle_frame)
+        self.setLayout(layout)
 
 
-class Left_frame(QFrame):
+# Фрейм с двумя частями: график слева и панель управления справа
+class MiddleFrame(BaseFrame):
     def __init__(self, parent=None):
-        super(Left_frame, self).__init__(parent)
-        self.setFrameStyle(QFrame.Shape.Panel | QFrame.Shadow.Plain)
+        super().__init__(parent)
+        layout = QHBoxLayout()
+        splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.addWidget(LeftFrame(self))
+        splitter.addWidget(RightFrame(self))
+        layout.addWidget(splitter)
+        self.setLayout(layout)
 
-        self.lay = QVBoxLayout()
-        self.lay.addWidget(Chart_form(self))
 
-        self.setLayout(self.lay)
+# Левая часть с графиком
+class LeftFrame(BaseFrame):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        layout = QVBoxLayout()
+        layout.addWidget(ChartForm(self))
+        self.setLayout(layout)
 
 
-class Chart_form(QFrame):
-    def __init__(self, parent=None, args=None):
-        super(Chart_form, self).__init__(parent)
-        self.args = args
-        # self.setFrameStyle(QFrame.Shape.Panel | QFrame.Shadow.Plain)
+# Правая часть с вкладками
+class RightFrame(BaseFrame):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setMinimumWidth(400)
+        layout = QVBoxLayout()
+        tab_widget = QTabWidget()
+        tab_widget.addTab(TradeFrame(self), 'Trade')
+        tab_widget.addTab(QFrame(), 'Limits')  # Пустая вкладка для примера
+        layout.addWidget(tab_widget)
+        self.setLayout(layout)
+
+
+# Форма графика
+class ChartForm(BaseFrame):
+    def __init__(self, parent=None):
+        super().__init__(parent)
         self.setMinimumHeight(300)
-
         self.chart = Chart()
         self.chart.setTitle("Dynamic average prices:")
         self.chart.legend().hide()
         self.chart.setAnimationOptions(QChart.AnimationOption.AllAnimations)
-        self.chart_view = QChartView(self.chart)
-        self.chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)
+        chart_view = QChartView(self.chart)
+        chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)
+        chart_view.setRubberBand(QChartView.RubberBand.HorizontalRubberBand)
 
-        # self.chart.setChart(Kline_chart())
+        # Кнопка для восстановления графика
+        self.reset_button = QPushButton("Восстановить")
+        self.reset_button.clicked.connect(self.reset_chart)
 
-        self.lay = QVBoxLayout()
-        self.lay.addWidget(self.chart_view)
-        self.setLayout(self.lay)
+        layout = QVBoxLayout()
+        layout.addWidget(chart_view)
+        layout.addWidget(self.reset_button)
+        self.setLayout(layout)
+
+    def reset_chart(self):
+        """Сброс графика к исходному состоянию."""
+        self.chart.zoomReset()  # Сброс масштаба
 
 
-class Right_frame(QFrame):
+# Форма торговли
+class TradeFrame(BaseFrame):
     def __init__(self, parent=None):
-        super(Right_frame, self).__init__(parent)
-        self.setFrameStyle(QFrame.Shape.Panel | QFrame.Shadow.Plain)
-        self.setMinimumWidth(400)
-
-        self.tab_bar = QTabWidget(self)
-        self.lay_tab = QHBoxLayout(self)
-        self.lay_tab.addWidget(self.tab_bar)
-
-        self.tab_bar.addTab(Trade_frame(self), 'Trade')
-        self.tab_bar.addTab(QFrame(self), 'Limits')
-
-        self.setLayout(self.lay_tab)
+        super().__init__(parent)
+        layout = QVBoxLayout()
+        layout.addWidget(PocketVolume(self))
+        layout.addWidget(CalculateOrders(self))
+        layout.addWidget(BottomForm(self))
+        self.setLayout(layout)
 
 
-class Trade_frame(QFrame):
+# Основное окно приложения
+class MainWindow(QMainWindow):
     def __init__(self, parent=None):
-        super(Trade_frame, self).__init__(parent)
-        self.lay = QVBoxLayout()
-        self.lay.addWidget(Pocket_volume(self))
-        self.lay.addWidget(Calculate_orders(self))
-        # self.lay.addWidget(Project_GADALKA(self))
-        self.lay.addWidget(Bottom_form(self))
-        self.setLayout(self.lay)
-
-
-class Central_frame(QFrame):
-    def __init__(self, parent=None):
-        super(Central_frame, self).__init__(parent)
-        self.setFrameStyle(QFrame.Shape.Panel | QFrame.Shadow.Plain)
-
-        self.lay = QVBoxLayout()
-
-        self.head_frame = Head_frame(self)
-        self.head_frame.setFixedHeight(60)
-
-        self.mid_frame = Middle_frame(self)
-
-        self.lay.addWidget(self.head_frame)
-        self.lay.addWidget(self.mid_frame)
-
-        self.setLayout(self.lay)
-
-
-class Main_window(QMainWindow):
-    def __init__(self, parent=None):
-        super(Main_window, self).__init__(parent)
-        self.main_lay = QHBoxLayout()
-
-        self.frame1 = Central_frame(self)
-
-        self.setCentralWidget(self.frame1)
+        super().__init__(parent)
+        self.central_frame = CentralFrame(self)
+        self.setCentralWidget(self.central_frame)
         self.showMaximized()
 
     def closeEvent(self, event):
-        # Отображаем диалоговое окно с вопросом о закрытии
         reply = QMessageBox.question(
             self,
             "Подтверждение",
@@ -213,40 +154,25 @@ class Main_window(QMainWindow):
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No
         )
-
         if reply == QMessageBox.StandardButton.Yes:
-            # Если пользователь согласен на закрытие, продолжаем процесс закрытия
             mem_app['stop_thread'] = True
             event.accept()
             print("Окно закрывается...")
         else:
-            # В противном случае игнорируем событие закрытия
             event.ignore()
             print("Закрытие отменено.")
 
-    #     self.update_timer = QTimer(self)
-    #     self.update_timer.timeout.connect(self.update_wgt)
-    #     self.update_timer.start(99)
-    #
-    # def update_wgt(self):
-    #
-    #     print(1)
 
-
-class App_kline(QApplication):
+# Запуск приложения
+class AppKline(QApplication):
     def __init__(self, argv):
         super().__init__(argv)
         self.setStyle('fusion')
-        # self.setStyle()
 
 
 def start_app():
-    init()
-
-    app = App_kline(sys.argv)
-    main = Main_window()
+    initialize_project()
+    app = AppKline(sys.argv)
+    main = MainWindow()
     result = app.exec()
-
     sys.exit(result)
-
-

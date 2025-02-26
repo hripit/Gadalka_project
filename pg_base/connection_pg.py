@@ -43,7 +43,7 @@ def get_data(select):
     except Error as err:
         print(colored(f"{date_now()}: Хуйня вышла-с в запросе: [{select}]"
                       f"\n\t\t --> текст ошибки: [{err.diag.message_primary}]", 'red'))
-        response = None
+        response = 'err'
         # sys.exit()
 
     finally:
@@ -52,8 +52,8 @@ def get_data(select):
 
     end_proc = perf_counter()
     print(colored(f"{date_now()}: Get pg_data: [{select}]"
-                  f"\n\t\t\tstart_proc: [{start_proc}] "
-                  f":: end_proc: [{end_proc}] :: duration_time: [{end_proc - start_proc}]", 'green'))
+                  f"\n\t\tstart_proc: [{start_proc}] "
+                  f":: end_proc: [{end_proc}] :: duration_time: [{end_proc - start_proc}]\n", 'green'))
 
     return response
 
@@ -88,7 +88,55 @@ def apply_dataframe_with_copy(select, kline_data):
 
     end_proc = perf_counter()
     print(colored(f"{date_now()}: Применение фрейма в базу данных: "
-          f"\n\t\t\tstart_proc: [{start_proc}] "
+                  f"\n\t\tstart_proc: [{start_proc}] "
                   f":: end_proc: [{end_proc}] :: duration_time: [{end_proc - start_proc}]", 'green'))
 
     return apply_result
+
+
+def insert_data(insert_text):
+
+    _db_connection = None
+    while not _db_connection:
+        _db_connection = open_base_connection()
+        if not _db_connection:
+            time.sleep(1)
+
+    _cursor = _db_connection.cursor()
+
+    try:
+        _cursor.execute(insert_text, )
+        _db_connection.commit()
+        response = _cursor.fetchone()
+
+    except Error as e:
+        print(colored(f"{date_now()}: Хуйня вышла-с в запросе: [{insert_text}]"
+                      f"\n\t\t --> текст ошибки: [{e}]", 'red'))
+        response = None
+    finally:
+        if _db_connection:
+            _cursor.close()
+            _db_connection.close()
+
+    return response
+
+
+def update_data(update_text):
+
+    _db_connection = None
+    while not _db_connection:
+        _db_connection = open_base_connection()
+        if not _db_connection:
+            time.sleep(1)
+
+    _cursor = _db_connection.cursor()
+    try:
+        _cursor.execute(update_text, )
+        _db_connection.commit()
+    except Error as e:
+        print(colored(f"{date_now()}: Хуйня вышла-с в запросе: [{update_text}]"
+                      f"\n\t\t --> текст ошибки: [{e}]", 'red'))
+    finally:
+        if _db_connection:
+            _cursor.close()
+            _db_connection.close()

@@ -1,6 +1,10 @@
 import datetime
+import sys
 from decimal import Decimal, getcontext
 from PyQt6.QtGui import QStandardItem
+from termcolor import colored
+
+from pg_base.select_pg import get_coin, get_symbols
 
 getcontext().prec = 10
 
@@ -63,3 +67,30 @@ def set_mini_symbols(symbol):
             }
 
     symbol['MINIS'] = mini
+
+
+def set_symbol_id(symbols_dict: dict):
+    def find_id():
+        for pg_id in pg_data:
+            if pg_id[1] == symbol:
+                return pg_id[0]
+        return None
+
+    symbols_list = list(symbols_dict.keys())
+    pg_data = get_symbols('BINANCE:timeless')
+
+    for symbol in symbols_list:
+        symbol_id = find_id()
+        if symbol_id:
+            symbols_dict[symbol]['PG_ID'] = symbol_id
+            continue
+
+        colored(print('Не найден ID символа -> ', symbol), 'red')
+        sys.exit()
+
+
+# Функция для преобразования Decimal в float или строку
+def decimal_default(obj):
+    if isinstance(obj, Decimal):
+        return str(obj)
+    raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")

@@ -71,92 +71,88 @@ def get_column_letter(col_num):
     return ''.join(reversed(letters))
 
 
-def to_xlxs(dframe, symbol: str, coin: str, w_day: str):
+def to_xlxs(dframe, merged_frame, symbol: str, coin: str, w_day: str):
     # Путь к файлу Excel
     file_path = f'{coin}-{symbol}-{f"{w_day:02d}"}.xlsx'
-
     if not remove_file_with_retry(file_path):
         return
+    main_sheet = f'{coin}-{symbol}-describe'
+    merged_sheet = f'{coin}-{symbol}-merged'
 
-    main_shet = f'{coin}-{symbol}-describe'
-
-    # # Создаем объект ExcelWriter с использованием движка xlsxwriter
+    # Создаем объект ExcelWriter с использованием движка xlsxwriter
     with pd.ExcelWriter(file_path, engine='xlsxwriter', datetime_format="DD.MM HH:MM") as writer:
-        dframe.to_excel(writer, sheet_name=main_shet, index=False, startcol=0, startrow=1, header=False)
+        # Записываем dframe на первый лист
+        dframe.to_excel(writer, sheet_name=main_sheet, index=False, startcol=0, startrow=1, header=False)
+
+        # Записываем merged_frame на второй лист
+        merged_frame.to_excel(writer, sheet_name=merged_sheet, index=False, startcol=0, startrow=1, header=False)
 
         workbook = writer.book
-        worksheet = writer.sheets[main_shet]
 
-        num_cols = len(dframe.columns)  # Количество столбцов
+        # Форматирование первого листа (dframe)
+        worksheet_main = writer.sheets[main_sheet]
+        format_and_style(worksheet_main, dframe, workbook)
 
-        # Устанавливаем формат для столбцов с датой/временем
-        date_format = workbook.add_format({'num_format': "DD.MM HH:MM"})
-        #
-        for col_num in range(1, num_cols):
-            if col_num == 2:
-                continue
-            col_letter = get_column_letter(col_num)  # Преобразуем номер столбца в букву ('D', 'E', 'F')
-            worksheet.set_column(f"{col_letter}:{col_letter}", None, date_format)
+        # Форматирование второго листа (merged_frame)
+        worksheet_merged = writer.sheets[merged_sheet]
+        format_and_style(worksheet_merged, merged_frame, workbook)
 
-        table = {'style': 'Table Style Light 9',
-                 'columns': [{'header': column} for column in dframe.columns],
-                 'banded_columns': True,
-                 }
-
-        sheet = writer.sheets[main_shet]
-
-        sheet.add_table(0, 0, dframe.shape[0], dframe.shape[1] - 1, table)
-        sheet.freeze_panes(1, 2)
-        sheet.autofit()
-
-        # # Добавляем трехцветную шкалу для каждой строки, начиная с четвертого столбца
-        # for row_num in range(2, dframe.shape[0] + 2):  # Начинаем со второй строки (Excel индексация с 1)
-        #     start_col = 3
-        #     end_col = num_cols  # Последний столбец
-        #
-        #     # Определяем диапазон ячеек для условного форматирования по строкам
-        #     start_cell = f"{get_column_letter(start_col)}{row_num}"  # Начало строки (например, D2)
-        #     end_cell = f"{get_column_letter(end_col)}{row_num}"  # Конец строки (например, F2)
-        #
-        #     # Добавляем трехцветную шкалу для текущей строки
-        #     worksheet.conditional_format(f"{start_cell}:{end_cell}", {
-        #         'type': '3_color_scale',
-        #         'min_color': '#FF6A6A',  # Красный (минимум)
-        #         'mid_color': '#FFF68F',  # Желтый (среднее)
-        #         'max_color': '#3CB371',  # Зеленый (максимум)
-        #     })
-
-        # Добавляем трехцветную шкалу для каждого столбца, начиная с третьего
-        for col_num in range(2, min(25, num_cols)):  # Начинаем с третьего столбца (индекс 3)
-            col_letter = get_column_letter(col_num)
-            # Определяем диапазон ячеек для условного форматирования
-            start_cell = f"{col_letter}2"  # Начинаем со второй строки (первая строка - заголовок)
-            end_cell = f"{col_letter}{dframe.shape[0] + 1}"  # Последняя строка данных
-
-            # Добавляем трехцветную шкалу
-            worksheet.conditional_format(f"{start_cell}:{end_cell}", {
-                'type': '3_color_scale',
-                'min_color': '#3CB371',
-                'mid_color': '#FFF68F',  # Желтый (среднее)
-                'max_color': '#FF6A6A',
-            })
-
-        if num_cols > 25:
-            for row_num in range(2, dframe.shape[0] + 2):  # Начинаем со второй строки
-                start_col = min(25, num_cols)  # Ограничиваем диапазон до последнего столбца
-
-                start_cell = f"{get_column_letter(start_col)}{row_num}"
-                end_cell = f"{get_column_letter(num_cols)}{row_num}"
-
-                worksheet.conditional_format(f"{start_cell}:{end_cell}", {
-                    'type': '3_color_scale',
-                    'min_color': '#3CB371',
-                    'mid_color': '#FFF68F',  # Желтый (среднее)
-                    'max_color': '#FF6A6A',
-                })
     # Открываем файл Excel после завершения
     subprocess.run(['start', file_path], shell=True)  # Для Windows
     print(f"DataFrame успешно выгружен в {file_path} с цветовой шкалой и фиксацией области")
+
+
+def format_and_style(worksheet, dataframe, workbook):
+    """
+    Применяет общее форматирование и стиль к листу.
+
+    :param worksheet: Лист Excel для форматирования.
+    :param dataframe: DataFrame для применения стиля.
+    :param workbook: Объект Workbook из XlsxWriter.
+    """
+    num_cols = len(dataframe.columns)  # Количество столбцов
+
+    # Устанавливаем формат для столбцов с датой/временем
+    date_format = workbook.add_format({'num_format': "DD.MM HH:MM"})
+    for col_num in range(1, num_cols):
+        if col_num == 2:
+            continue
+        col_letter = get_column_letter(col_num)  # Преобразуем номер столбца в букву ('D', 'E', 'F')
+        worksheet.set_column(f"{col_letter}:{col_letter}", None, date_format)
+
+    # Создаем таблицу
+    table = {'style': 'Table Style Light 9',
+             'columns': [{'header': column} for column in dataframe.columns],
+             'banded_columns': True,
+             }
+    worksheet.add_table(0, 0, dataframe.shape[0], dataframe.shape[1] - 1, table)
+    worksheet.freeze_panes(1, 2)
+    worksheet.autofit()
+
+    # Добавляем трехцветную шкалу для каждого столбца, начиная с третьего
+    for col_num in range(2, min(25, num_cols)):  # Начинаем с третьего столбца (индекс 3)
+        col_letter = get_column_letter(col_num)
+        start_cell = f"{col_letter}2"  # Начинаем со второй строки
+        end_cell = f"{col_letter}{dataframe.shape[0] + 1}"  # Последняя строка данных
+        worksheet.conditional_format(f"{start_cell}:{end_cell}", {
+            'type': '3_color_scale',
+            'min_color': '#3CB371',  # Зеленый
+            'mid_color': '#FFF68F',  # Желтый
+            'max_color': '#FF6A6A',  # Красный
+        })
+
+    # Добавляем трехцветную шкалу для строк, если количество столбцов > 25
+    if num_cols > 25:
+        for row_num in range(2, dataframe.shape[0] + 2):  # Начинаем со второй строки
+            start_col = min(25, num_cols)  # Ограничиваем диапазон до последнего столбца
+            start_cell = f"{get_column_letter(start_col)}{row_num}"
+            end_cell = f"{get_column_letter(num_cols)}{row_num}"
+            worksheet.conditional_format(f"{start_cell}:{end_cell}", {
+                'type': '3_color_scale',
+                'min_color': '#3CB371',  # Зеленый
+                'mid_color': '#FFF68F',  # Желтый
+                'max_color': '#FF6A6A',  # Красный
+            })
 
 
 @measure_execution_time
@@ -280,24 +276,32 @@ def gen_frames_by_weeks(symbol: str, coin: str, margin: float, base_asset: float
 
     return merged_weeks
 
+
 @measure_execution_time
-def find_min_mean_by_hour(dataframe, hour_column='hour_minute', mean_column='mean'):
+def find_n_min_mean_by_hour(dataframe, hour_column='hour_minute', mean_column='mean', n=2):
     """
-    Находит строки с минимальным значением 'mean' для каждого часа.
+    Находит две строки с минимальным значением 'mean' для каждого часа.
 
     :param dataframe: Исходный DataFrame.
     :param hour_column: Название столбца с временными метками (по умолчанию 'hour_minute').
     :param mean_column: Название столбца со значениями 'mean' (по умолчанию 'mean').
-    :return: DataFrame с минимальными значениями 'mean' для каждого часа.
+    :return: DataFrame с двумя минимальными значениями 'mean' для каждого часа.
     """
     if dataframe.empty:
         return pd.DataFrame()  # Возвращаем пустой DataFrame, если входные данные пустые
 
-    # Группировка по часам и поиск индексов минимальных значений 'mean'
-    min_mean_idx = dataframe.groupby(dataframe[hour_column].dt.hour)[mean_column].idxmin()
+    # Создаем пустой список для хранения результатов
+    result = []
 
-    # Отбор строк с минимальными значениями 'mean'
-    return dataframe.loc[min_mean_idx].reset_index(drop=True)
+    # Группировка по часам и выбор двух минимальных значений 'mean'
+    for hour, group in dataframe.groupby(dataframe[hour_column].dt.hour):
+        # Выбираем две строки с минимальными значениями 'mean'
+        n_min_rows = group.nsmallest(n, mean_column)
+        result.append(n_min_rows)
+
+    # Объединяем результаты в один DataFrame
+    return pd.concat(result).reset_index(drop=True)
+
 
 @measure_execution_time
 def filter_by_mean_count(dataframe, count_column='count'):
@@ -322,7 +326,7 @@ if __name__ == '__main__':
     layers = [
         ['WIFUSDT', 'WIF', 0.002, 100],
         # ['WIFUSDT', 'USDT', 0.002, 100],
-        ['ETHBTC', 'BTC', 0.01, 0.0055],
+        # ['ETHBTC', 'BTC', 0.01, 0.0055],
         # ['ETHBTC', 'ETH', 0.01, 0.0055]
     ]
 
@@ -360,13 +364,13 @@ if __name__ == '__main__':
                 continue
 
             # Поиск строк с минимальным 'mean' для каждого часа
-            result_frame = find_min_mean_by_hour(filtered_frame, hour_column='hour_minute', mean_column='mean')[0]
+            result_frame = find_n_min_mean_by_hour(filtered_frame, hour_column='hour_minute', mean_column='mean')[0]
 
             if result_frame.empty:
                 continue
 
             # Сохранение результата в Excel
-            to_xlxs(result_frame, s, c, w_day)
+            to_xlxs(result_frame, merged_frame, s, c, w_day)
 
     # Спрашиваем у пользователя, какой день недели анализировать
     user_input = input("""

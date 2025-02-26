@@ -1,161 +1,205 @@
 import copy
 import random
 
+from json import dumps, loads
+
 from PyQt6.QtCore import *
 from PyQt6.QtGui import *
 from PyQt6.QtWidgets import *
 from PyQt6.QtCharts import *
 from interface.app_param import message_md, mem_app, orders_imd, orders_model, stop_thread
-from interface.app_uti import compare_message, set_mini_symbols
+from interface.app_uti import compare_message, set_mini_symbols, set_symbol_id
 from interface.binance_data import get_balance_info, get_all_rules, get_tradeFee
 from pg_base.select_pg import get_coin, get_symbols
 from interface.bi_socket import order_thread
 
 from interface.symbol_chart import chart_param, update_chart_param
+from interface.trade import Trade_wgt
+import seaborn as sns
+
+from interface.trade_back import Go_trade
 
 params = dict()
 
 
-def set_orders_model():
+def set_orders_model(symbols=None):
+    """
+    Устанавливает модель orders_model на основе данных о символах.
+    :param symbols: Список или словарь символов (опционально).
+    """
+    # Очищаем текущую модель
     orders_model.clear()
 
-    orders_model.setHorizontalHeaderLabels(["Symbol",
-                                            "ORDER_ID", "Pocket_out", "Side", "Price", "Status", "Pocket_in",
-                                            "ORDER_ID", "Pocket_out", "Side", "Price", "Status", "Pocket_in",
-                                            "Interval", "Profit", "Spread"])
-    for symbol in mem_app['params']['symbols'].values():
-        ind_list = list(symbol['index_model'].values())
+    # Если symbols не переданы, используем глобальные данные
+    if symbols is None:
+        symbols = mem_app.get('params', {}).get('symbols', {}).values()
+
+    # Устанавливаем заголовки таблицы
+    orders_model.setHorizontalHeaderLabels([
+        "Символ",
+        "1. Взято", "Сторона", "Цена", "Получено",
+        "2. Взято", "Сторона", "Цена", "Получено",
+        "Период", "Доходность", "Разница цены"
+    ])
+
+    # Добавляем строки для каждого символа
+    for symbol in symbols:
+        ind_list = list(symbol.get('index_model', {}).values())
+        if not ind_list:
+            continue  # Пропускаем символы без 'index_model'
+
+        # Преобразуем QStandardItem в список для добавления в модель
         orders_model.appendRow(ind_list)
 
 
-def set_orders_imd():
-    trades_ind = dict()
+def set_orders_imd(symbols):
+    """
+    Инициализирует индексы моделей для каждого символа.
+    :param symbols: Словарь символов.
+    """
+    if not symbols or not isinstance(symbols, dict):
+        raise ValueError("Переданный словарь symbols пуст или имеет некорректный тип.")
 
-    for symbol in mem_app['params']['symbols'].values():
-        symbol['index_model'] = copy.deepcopy(trades_ind)
-        symbol['index_model']['Symbol'] = QStandardItem('None')
-        symbol['index_model']['Symbol'].setData(symbol['COLOR'], Qt.ItemDataRole.ForegroundRole)
+    # Определяем шаблон trades_ind_template
+    trades_ind_template = {
+        "Symbol": "None",
+        "Pocket_out_1": "None",
+        "Side_1": "None",
+        "Price_1": "None",
+        "Pocket_in_1": "None",
+        "Pocket_out_2": "None",
+        "Side_2": "None",
+        "Price_2": "None",
+        "Pocket_in_2": "None",
+        "Interval": "None",
+        "Profit": "None",
+        "Spread": "None"
+    }
 
-        symbol['index_model']['FIRST_ORDER'] = QStandardItem('...')
-        symbol['index_model']['Pocket_out_1'] = QStandardItem('None')
-        symbol['index_model']['Side_1'] = QStandardItem('None')
-        symbol['index_model']['Price_1'] = QStandardItem('None')
-        symbol['index_model']['Status_1'] = QStandardItem('None')
-        symbol['index_model']['Pocket_in_1'] = QStandardItem('None')
-        symbol['index_model']['SECOND_ORDER'] = QStandardItem('...')
-        symbol['index_model']['Pocket_out_2'] = QStandardItem('None')
-        symbol['index_model']['Side_2'] = QStandardItem('None')
-        symbol['index_model']['Price_2'] = QStandardItem('None')
-        symbol['index_model']['Status_2'] = QStandardItem('None')
-        symbol['index_model']['Pocket_in_2'] = QStandardItem('None')
-        symbol['index_model']['Interval'] = QStandardItem('None')
-        symbol['index_model']['Profit'] = QStandardItem('None')
-        symbol['index_model']['Spread'] = QStandardItem('None')
+    # Инициализируем index_model для каждого символа
+    for symbol_data in symbols.values():
+        if not isinstance(symbol_data, dict):
+            continue  # Пропускаем некорректные символы
 
+        # Создаем новую структуру на основе шаблона
+        symbol_data["index_model"] = {}
+
+        for key, value in trades_ind_template.items():
+            # Для каждого ключа создаем новый QStandardItem
+            symbol_data["index_model"][key] = QStandardItem(value)
+
+        # Устанавливаем цвет для символа
+        symbol_data["index_model"]["Symbol"].setData(
+            symbol_data.get("COLOR", QColor("black")),
+            Qt.ItemDataRole.ForegroundRole
+        )
+
+    # Останавливаем потоки
     mem_app['stop_thread'] = False
 
-    set_orders_model()
+    # Устанавливаем модель orders_model
+    set_orders_model(list(symbols.values()))
 
-    order_thread()
+    # Запускаем потоки обработки заказов только если symbols не пуст
+    if symbols:
+        order_thread()
 
 
 def generate_colors(symbols):
-    """Генерирует уникальные цвета для каждого значения из списка."""
+    """
+    Генерирует уникальные цвета для каждого символа.
+
+    :param symbols: Словарь символов.
+    """
     num_values = len(symbols)
-    for i, symbol in enumerate(symbols):
-        # Генерируем случайный цвет
-        # Генерируем цвет на основе индекса элемента
-        hue = (i * 360) // num_values  # Распределяем оттенки равномерно по всему кругу
-        saturation = 255  # Максимальная насыщенность
-        value_level = 200  # Яркость
+    palette = sns.color_palette("Spectral", n_colors=num_values)
+    colors_qt = [QColor(*[int(c * 255) for c in color[:3]]) for color in palette]
 
-        color = QColor()
-        color.setHsv(hue, saturation, value_level)
-
-        symbols[symbol]['COLOR'] = color
+    for i, symbol in enumerate(symbols.values()):
+        symbol["COLOR"] = colors_qt[i % len(colors_qt)]
 
 
 def get_all_symbols(coin):
-    symbols = list()
+    """
+    Получает все доступные символы для указанной монеты.
 
+    :param coin: Название монеты.
+    :return: Словарь символов.
+    """
     rules = get_all_rules()
-
     while not rules:
         rules = get_all_rules()
 
-    result = rules['symbols']
-    for val in result:
-        if not val['status'] == 'TRADING':
-            continue
-        if 'LIMIT' not in val['orderTypes']:
-            continue
-        if coin not in (val['baseAsset'], val['quoteAsset']):
-            continue
+    result = [symbol for symbol in rules["symbols"]
+              if symbol["status"] == "TRADING" and "LIMIT" in symbol["orderTypes"] and coin in (symbol["baseAsset"], symbol["quoteAsset"])]
 
-        set_mini_symbols(val)
-        symbols.append(val)
+    if len(result) > 10:
+        pg_symbols = {x[1] for x in get_symbols("BINANCE:timeless")}
+        result = [symbol for symbol in result if symbol["symbol"] in pg_symbols]
 
-    if len(symbols) > 10:
-        # оставим только "нужные" символы
-        pg_symbols = get_symbols('BINANCE:timeless')
-        pg_symbols = [x[1] for x in pg_symbols]
-
-        symbols = [n for n in symbols if n['symbol'] in pg_symbols]
-
-    symbol_dict = dict()
-    for symbol in symbols:
-        symbol_dict[symbol['symbol']] = symbol
+    symbol_dict = {symbol["symbol"]: symbol for symbol in result}
+    for symbol in symbol_dict.values():
+        set_mini_symbols(symbol)
 
     generate_colors(symbol_dict)
+    set_symbol_id(symbol_dict)
 
     return symbol_dict
 
 
 def init_params(coin):
+    """
+    Инициализирует параметры приложения для указанной монеты.
+    :param coin: Название монеты.
+    """
     mem_app['stop_thread'] = True
 
+    # Инициализируем params
+    params.clear()  # Очищаем старые данные
     params['coin'] = get_coin('BINANCE:timeless', coin)[0]
     if not params['coin']:
         message_md.appendRow(compare_message(f'Сбой инициализации монеты...'))
+        mem_app['params'] = {'symbols': {}}  # Обеспечиваем минимальную инициализацию
         return
-    message_md.appendRow(compare_message(f'Выполнена инициализация монеты {params['coin']}'))
 
-    # params['balance'] = get_balance_info(coin=params['coin'][1])['free']
-    params['balance'] = '100'
+    message_md.appendRow(compare_message(f'Выполнена инициализация монеты {params["coin"]}'))
+
+    # Получаем баланс
+    params['balance'] = '100'  # get_balance_info(coin=params['coin'][1])['free']
     if not params['balance']:
-        message_md.appendRow(compare_message(f'Отказ получения баланса по монете: {params['coin']}'))
+        message_md.appendRow(compare_message(f'Отказ получения баланса по монете: {params["coin"]}'))
+        mem_app['params'] = {'symbols': {}}  # Обеспечиваем минимальную инициализацию
         return
-    message_md.appendRow(compare_message(f'Получен баланс по монете: {params['coin']}, баланс:  '
-                                         f'[{params['balance']}]'))
 
-    # symbols = get_balance_info(coin=None)
+    message_md.appendRow(compare_message(f'Получен баланс по монете: {params["coin"]}, баланс: [{params["balance"]}]'))
+
+    # Получаем все символы для монеты
     params['symbols'] = get_all_symbols(params['coin'][1])
-
     if not params['symbols']:
-        message_md.appendRow(compare_message(f'Отказ получения информации по символам монеты: [{params['coin']}]'))
+        message_md.appendRow(compare_message(f'Отказ получения информации по символам монеты: [{params["coin"]}]'))
+        mem_app['params'] = {'symbols': {}}  # Обеспечиваем минимальную инициализацию
         return
 
-    message_md.appendRow(compare_message(f'Получена информация по символам : '
-                                         f'всего: [{len(params['symbols'])}]'))
-    orders_imd.clear()
+    for symbol in params["symbols"].values():
+        symbol["TRADES"] = {"order_1": None, "order_2": None,
+                            "total": {"interval": None, "profit": None, "spread": None}}
+        orders_imd[symbol["symbol"]] = {}
+        symbol["socket_price"] = None
+        symbol["thread"] = None
+        symbol["fee"] = get_tradeFee(symbol["symbol"])[0]["makerCommission"]
+        symbol["margin"] = 1 / 100
+        symbol["calcu_flag"] = False
 
-    for symbol in params['symbols'].values():
-        order_dict = None
+    message_md.appendRow(compare_message(f'Получена информация по символам: всего: [{len(params["symbols"])}]'))
 
-        symbol['TRADES'] = {'order_1': copy.deepcopy(order_dict), 'order_2': copy.deepcopy(order_dict)}
-        symbol['TRADES']['total'] = {'interval': None, 'profit': None, 'spread': None}
-
-        orders_imd[symbol['symbol']] = dict()
-        symbol['socket_price'] = None
-        symbol['thread'] = None
-
-        symbol['fee'] = get_tradeFee(symbol['symbol'])[0]['makerCommission']
-        symbol['margin'] = 0.2 / 100
-        symbol['calcu_flag'] = False
-
+    # Обновляем глобальную переменную mem_app
     mem_app['params'] = params
 
-    set_orders_imd()
+    # Очищаем старые данные
+    orders_imd.clear()
+
+    # Инициализируем индексы моделей
+    set_orders_imd(params['symbols'])
 
 
 def coinChanged(coin):
@@ -167,40 +211,42 @@ def balanceChanged(balance):
         params['balance'] = balance
 
 
-class Pocket_volume(QFrame):
+class PocketVolume(QFrame):
     def __init__(self, parent=None):
-        super(Pocket_volume, self).__init__(parent)
+        super(PocketVolume, self).__init__(parent)
+        self.balance_input = None
+        self.coin_combo = None
+        self.update_timer = None
         self.setFrameStyle(QFrame.Shape.Panel | QFrame.Shadow.Plain)
 
-        self.lay = QHBoxLayout()
-        self.lay.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
+        self.init_ui()
 
-        self.label = QLabel('Pocket:')
-        self.label.setMinimumWidth(50)
+    def init_ui(self):
+        """Инициализирует пользовательский интерфейс."""
+        layout = QHBoxLayout()
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
 
-        self.coin = QComboBox(self)
-        self.coin.setMinimumWidth(100)
-        self.coin_model = QStandardItemModel()
-        self.coin_model.appendRow(QStandardItem('WIF'))
-        self.coin_model.appendRow(QStandardItem('USDT'))
-        self.coin.setModel(self.coin_model)
-        self.coin.currentTextChanged.connect(coinChanged)
+        label = QLabel("Pocket:")
+        label.setMinimumWidth(50)
 
-        self.balance = QLineEdit(self)
-        self.balance.setText('none')
-        self.balance.textChanged.connect(balanceChanged)
-        # self.value.setMinimumWidth(80)
+        self.coin_combo = QComboBox()
+        self.coin_combo.setMinimumWidth(100)
+        self.coin_combo.addItems(["WIF", "USDT", "BTC"])
+        self.coin_combo.currentTextChanged.connect(lambda text: init_params(text))
 
-        self.btn = QPushButton()
-        self.btn.setFixedWidth(30)
-        self.btn.clicked.connect(self.start_trade)
+        self.balance_input = QLineEdit("none")
+        self.balance_input.textChanged.connect(lambda text: balanceChanged(text))
 
-        self.lay.addWidget(self.label)
-        self.lay.addWidget(self.balance)
-        self.lay.addWidget(self.coin)
-        self.lay.addWidget(self.btn)
+        btn = QPushButton("Start")
+        btn.setFixedWidth(30)
+        btn.clicked.connect(self.start_trade)
 
-        self.setLayout(self.lay)
+        layout.addWidget(label)
+        layout.addWidget(self.balance_input)
+        layout.addWidget(self.coin_combo)
+        layout.addWidget(btn)
+
+        self.setLayout(layout)
         self.setFixedHeight(40)
 
         self.update_timer = QTimer(self)
@@ -209,74 +255,68 @@ class Pocket_volume(QFrame):
         self.update_timer.start()
 
     def update_wgt(self):
-        if params:
-            if not params['balance'] == self.balance.text():
-                self.balance.setText(params['balance'])
+        """Обновляет отображение баланса."""
+        if params and params["balance"] != self.balance_input.text():
+            self.balance_input.setText(params["balance"])
 
     def start_trade(self):
-        init_params(self.coin.currentText())
+        """Запускает торговлю для выбранной монеты."""
+        init_params(self.coin_combo.currentText())
 
 
-# Шаг 2: Обработчик события выделения и снятия выделения
 def on_selection_changed(selected: QItemSelection, deselected: QItemSelection):
-    # Обработка выделения строк
+    """
+    Обрабатывает выделение строк в таблице.
 
+    :param selected: Выбранные элементы.
+    :param deselected: Снятое выделение.
+    """
     for index in selected.indexes():
         if index.column() == 0:
             row = index.row()
             symbol = orders_model.data(orders_model.index(row, 0))
-            chart_param[symbol] = dict()
+            chart_param[symbol] = {}
 
     for index in deselected.indexes():
         if index.column() == 0:
             row = index.row()
             symbol = orders_model.data(orders_model.index(row, 0))
-            chart_param[symbol]['stop_thread'] = True
-
-            chart_param.pop(symbol)
+            chart_param.pop(symbol, None)
 
     update_chart_param()
 
 
-class Calculate_orders(QFrame):
+class CalculateOrders(QFrame):
     def __init__(self, parent=None):
-        super(Calculate_orders, self).__init__(parent)
+        super(CalculateOrders, self).__init__(parent)
+        self.model = None
+        self.table_view = None
         self.setFrameStyle(QFrame.Shape.Panel | QFrame.Shadow.Plain)
-        # self.setMaximumHeight(200)
-        self.header_text = QLabel('Math of transaction :')
-        self.lay = QVBoxLayout()
-        self.lay.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
 
-        self.table_view = QTableView(self)
+        self.init_ui()
+
+    def init_ui(self):
+        """Инициализирует пользовательский интерфейс."""
+        layout = QVBoxLayout()
+        header = QLabel("Math of transaction:")
+        layout.addWidget(header)
+
+        self.table_view = QTableView()
         self.model = orders_model
-
         self.table_view.setModel(self.model)
         self.table_view.setSortingEnabled(True)
 
-        self.table_view.setColumnWidth(2, 120)
-        self.table_view.setColumnWidth(3, 40)
-        self.table_view.setColumnWidth(6, 120)
-        self.table_view.setColumnWidth(8, 120)
-        self.table_view.setColumnWidth(9, 40)
-        self.table_view.setColumnWidth(12, 120)
+        for col, width in enumerate([120, 40, 120, 120, 40, 120]):
+            self.table_view.setColumnWidth(col, width)
 
-        # Настройка режима выделения для выделения всей строки
         self.table_view.setSelectionBehavior(QTableView.SelectionBehavior.SelectRows)
         self.table_view.setSelectionMode(QTableView.SelectionMode.MultiSelection)
 
-        # Настройка горизонтального заголовка
-        horizontal_header = self.table_view.horizontalHeader()
-        horizontal_header.setDefaultSectionSize(80)
-        horizontal_header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
-
-        # Подключаем обработчик события выделения
         selection_model = self.table_view.selectionModel()
         selection_model.selectionChanged.connect(on_selection_changed)
 
-        self.lay.addWidget(self.header_text)
-        self.lay.addWidget(self.table_view)
-
-        self.setLayout(self.lay)
+        layout.addWidget(self.table_view)
+        self.setLayout(layout)
 
 
 class Project_GADALKA(QFrame):
@@ -300,34 +340,49 @@ class Project_GADALKA(QFrame):
         self.setLayout(self.lay)
 
 
-class Bottom_form(QFrame):
+class BottomForm(QFrame):
     def __init__(self, parent=None):
-        super(Bottom_form, self).__init__(parent)
+        super(BottomForm, self).__init__(parent)
         self.setFrameStyle(QFrame.Shape.Panel | QFrame.Shadow.Plain)
         self.setMaximumHeight(200)
 
-        self.lay = QVBoxLayout()
-        self.lay.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignCenter)
+        self.init_ui()
 
-        self.red_btn = QPushButton('Press me')
-        self.red_btn.clicked.connect(self.lets_trade)
+    def init_ui(self):
+        """Инициализирует пользовательский интерфейс."""
+        layout = QVBoxLayout()
+        layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignCenter)
 
-        self.lay.addWidget(self.red_btn)
-        self.setLayout(self.lay)
+        btn = QPushButton("Press me")
+        btn.clicked.connect(self.lets_trade)
+        layout.addWidget(btn)
+
+        self.setLayout(layout)
 
     def lets_trade(self):
-        mem_app['stop_thread'] = True
+        """Запускает процесс торговли."""
+        mem_app["stop_thread"] = True
+        Go_trade()
+
+        offset = QPoint(30, 30)
+        current_position = QPoint(self.screen_geometry.left() + 100, self.screen_geometry.top() + 100)
+
+        for symbol in mem_app["params"]["symbols"].keys():
+            new_position = current_position + offset
+            current_position += offset
+
+            dialog = Trade_wgt(parent=self, symbol=symbol, offset=new_position, screen_geometry=self.screen_geometry)
+            dialog.show()
 
 
 class Messages(QFrame):
     def __init__(self, parent=None):
         super(Messages, self).__init__(parent)
-        self.cmb = QComboBox(self)
+        self.cmb = QComboBox()
         self.lay = QHBoxLayout()
         self.lay.addWidget(self.cmb)
 
         self.message_model = message_md
-        # self.message_model.setItem(0,0,QStandardItem('Текстовые сообщения программы....'))
         self.cmb.setModel(self.message_model)
 
         self.cmb.setCurrentIndex(message_md.rowCount() - 1)

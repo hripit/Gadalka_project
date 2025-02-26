@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  app:  # Сервис Python-приложения
+    build: .                               # Собирает образ из текущей директории
+    volumes:
+      - .:/app                             # Монтирует локальную директорию
+    working_dir: /app                      # Устанавливает рабочую директорию
+    command: python main.py                # Запускает основной скрипт
+    networks:
+      - my-network                         # Подключается к общей сети
+    depends_on:                            # Определяет зависимость от PostgreSQL
+      - db
+
+  db:  # Существующий контейнер PostgreSQL
+    image: postgres:15                     # Образ PostgreSQL (не создаёт новый контейнер)
+    container_name: my-postgres            # Имя существующего контейнера
+    environment:
+      POSTGRES_PASSWORD: mysecretpassword  # Пароль для пользователя postgres
+      POSTGRES_DB: mydatabase              # Название базы данных
+    networks:
+      - my-network                         # Подключается к общей сети
+    restart: unless-stopped                # Перезапускается автоматически при необходимости
+
+networks:
+  my-network:                              # Объявление общей сети

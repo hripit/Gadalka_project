@@ -33,7 +33,7 @@ def convert_to_timestamp(date_time: datetime):
 
 
 def convert_from_timestamp(dtime) -> datetime:
-    return datetime.fromtimestamp(int(dtime / 1000)).replace(tzinfo=None)
+    return datetime.fromtimestamp(int(dtime / 1000), UTC).replace(tzinfo=None)
 
 
 def date_now():

@@ -1,15 +1,16 @@
+from pg_base.connection_pg import update_data
 
-def open_base_connection():
-    try:
-        response = psycopg2.connect(user=PARAMS_DB["user"],
-                                    password=PARAMS_DB["password"],
-                                    host=PARAMS_DB["host"],
-                                    port=PARAMS_DB["port"],
-                                    dbname=PARAMS_DB["dbname"])
 
-    except db_errors as error:
-        print(f"{date_now()}: Хуйня вышла-с open_base_connection(): "
-              f"{error.status_code}, error code: {error.error_code}, error message: {error.error_message}")
-        response = False
+def update_order_by_id(schema, order_id, status_id, body_json, platform_uid):
+    body_json = f", body_json='{body_json}'::JSONB" if body_json else ''
+    platform_uid = f', platform_uid={platform_uid}' if platform_uid else ''
 
-    return response
+    update_text = f'''-- Обновим ордер:
+    UPDATE "{schema}".orders
+	SET status_id={status_id} 
+	{body_json}
+	{platform_uid}
+	WHERE order_id={order_id}
+	;'''
+
+    return update_data(update_text)
