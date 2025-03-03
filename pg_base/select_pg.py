@@ -147,9 +147,9 @@ def get_price_by_week(week, ind_week):
         SELECT 
             kd_today.open_time AS open_time,
             kd_today.price_low AS {ind_week}
-        FROM "BINANCE:timeless".kline_data kd_today
+        FROM "BINANCE_timeless".kline_data kd_today
         CROSS JOIN params
-        LEFT JOIN "BINANCE:timeless".symbols_data sy ON kd_today.symbol_id = sy.symbol_id
+        LEFT JOIN "BINANCE_timeless".symbols_data sy ON kd_today.symbol_id = sy.symbol_id
         WHERE 
             --DATE_PART('dow', kd_today.open_time) = DATE_PART('dow', NOW()) 
             --AND 
@@ -180,9 +180,9 @@ def get_line_by_week(start_dt, end_dt, coin, symbol, margin, base_asset):
             SELECT
                 ht.open_time AS open_time,
                 tm.time_left AS time_left
-            FROM "BINANCE:timeless".hst_trade ht
-            LEFT JOIN "BINANCE:timeless".trade_model tm ON ht.sid = tm.sid_start
-            LEFT JOIN "BINANCE:timeless".hst_trade target ON target.sid = tm.sid_target
+            FROM "BINANCE_timeless".hst_trade ht
+            LEFT JOIN "BINANCE_timeless".trade_model tm ON ht.sid = tm.sid_start
+            LEFT JOIN "BINANCE_timeless".hst_trade target ON target.sid = tm.sid_target
             WHERE
                 tm.coin = :coin
                 AND ht.symbol = :symbol

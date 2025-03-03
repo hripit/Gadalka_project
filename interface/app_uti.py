@@ -77,7 +77,7 @@ def set_symbol_id(symbols_dict: dict):
         return None
 
     symbols_list = list(symbols_dict.keys())
-    pg_data = get_symbols('BINANCE:timeless')
+    pg_data = get_symbols('BINANCE_timeless')
 
     for symbol in symbols_list:
         symbol_id = find_id()

@@ -134,7 +134,7 @@ def get_all_symbols(coin):
               if symbol["status"] == "TRADING" and "LIMIT" in symbol["orderTypes"] and coin in (symbol["baseAsset"], symbol["quoteAsset"])]
 
     if len(result) > 10:
-        pg_symbols = {x[1] for x in get_symbols("BINANCE:timeless")}
+        pg_symbols = {x[1] for x in get_symbols("BINANCE_timeless")}
         result = [symbol for symbol in result if symbol["symbol"] in pg_symbols]
 
     symbol_dict = {symbol["symbol"]: symbol for symbol in result}
@@ -156,7 +156,7 @@ def init_params(coin):
 
     # Инициализируем params
     params.clear()  # Очищаем старые данные
-    params['coin'] = get_coin('BINANCE:timeless', coin)[0]
+    params['coin'] = get_coin('BINANCE_timeless', coin)[0]
     if not params['coin']:
         message_md.appendRow(compare_message(f'Сбой инициализации монеты...'))
         mem_app['params'] = {'symbols': {}}  # Обеспечиваем минимальную инициализацию

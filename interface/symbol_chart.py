@@ -20,7 +20,7 @@ from PyQt6.QtCore import Qt, QTimer
 
 # from PyQt6.QtGui import QPen, QColor
 
-max_minutes = int(60 * 12)
+max_minutes = int(60 * 16)
 
 chart_param = dict()
 # Секция хранения параметров подключения API Binance

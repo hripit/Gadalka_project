@@ -1,6 +1,6 @@
 # Стандартная библиотека Python
 import datetime
-import os
+import os, sys
 import subprocess
 import time
 import threading
@@ -10,6 +10,11 @@ from dateutil.relativedelta import relativedelta
 # Внешние библиотеки
 import pandas as pd
 import numpy as np
+
+# Добавляем родительскую директорию (где лежит uti.py) в sys.path
+current_dir = os.path.dirname(os.path.abspath(__file__))  # Текущая директория
+parent_dir = os.path.dirname(current_dir)  # Родительская директория
+sys.path.append(parent_dir)
 
 # Локальные модули
 from pg_base.select_pg import get_line_by_week
@@ -71,13 +76,13 @@ def get_column_letter(col_num):
     return ''.join(reversed(letters))
 
 
-def to_xlxs(dframe, merged_frame, symbol: str, coin: str, w_day: str):
-    # Путь к файлу Excel
-    file_path = f'{coin}-{symbol}-{f"{w_day:02d}"}.xlsx'
+def to_xlxs(dframe, merged_frame, lay, w_day):
+    # Путь к файлу Excel  ['WIFUSDT', 'WIF', 0.002, 100],
+    file_path = f'{lay[1]}-{lay[0]}-{lay[2]}-{f"{w_day:02d}"}.xlsx'
     if not remove_file_with_retry(file_path):
         return
-    main_sheet = f'{coin}-{symbol}-describe'
-    merged_sheet = f'{coin}-{symbol}-merged'
+    main_sheet = f'{lay[1]}-{lay[0]}-describe'
+    merged_sheet = f'{lay[1]}-{lay[0]}-full'
 
     # Создаем объект ExcelWriter с использованием движка xlsxwriter
     with pd.ExcelWriter(file_path, engine='xlsxwriter', datetime_format="DD.MM HH:MM") as writer:
@@ -324,9 +329,11 @@ def filter_by_mean_count(dataframe, count_column='count'):
 
 if __name__ == '__main__':
     layers = [
-        ['WIFUSDT', 'WIF', 0.002, 100],
+        # ['WIFUSDT', 'WIF', 0.002, 1000],
+        # ['WIFUSDT', 'WIF', 0.01, 1000],
         # ['WIFUSDT', 'USDT', 0.002, 100],
-        # ['ETHBTC', 'BTC', 0.01, 0.0055],
+        ['WIFUSDT', 'USDT', 0.01, 1000],
+        ['ETHBTC', 'BTC', 0.01, 0.0055],
         # ['ETHBTC', 'ETH', 0.01, 0.0055]
     ]
 
@@ -370,7 +377,7 @@ if __name__ == '__main__':
                 continue
 
             # Сохранение результата в Excel
-            to_xlxs(result_frame, merged_frame, s, c, w_day)
+            to_xlxs(result_frame, merged_frame, lay, w_day)
 
     # Спрашиваем у пользователя, какой день недели анализировать
     user_input = input("""
